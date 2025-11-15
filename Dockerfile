@@ -7,8 +7,11 @@ WORKDIR /app/frontend
 COPY frontend/package*.json ./
 RUN npm install
 
-# Copy frontend source and build
+# Copy frontend source
 COPY frontend/ ./
+
+# Build frontend (API URL is determined at runtime based on hostname)
+# No need to set REACT_APP_API_URL - it will use relative /api in production
 RUN npm run build
 
 # Production stage - Python backend with built frontend

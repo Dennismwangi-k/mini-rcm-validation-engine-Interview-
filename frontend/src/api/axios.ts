@@ -1,6 +1,25 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+// Determine API URL based on environment
+// In production (same domain), use relative path /api
+// In development, use localhost:8000
+const getApiBaseUrl = () => {
+  // Check if we're in production (not localhost)
+  const isProduction = window.location.hostname !== 'localhost' && 
+                       window.location.hostname !== '127.0.0.1' &&
+                       !window.location.hostname.startsWith('192.168.');
+  
+  if (isProduction) {
+    // In production, use relative path (same domain)
+    // Nginx will proxy /api to Django backend
+    return '/api';
+  }
+  
+  // Development: use localhost or explicit env variable
+  return process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 const api = axios.create({
   baseURL: API_BASE_URL,
