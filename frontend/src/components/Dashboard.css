@@ -75,8 +75,10 @@
 }
 
 .logout-button {
-  padding: 0.5rem 0.875rem;
+  padding: 0.5rem 0.75rem; /* Reduced padding */
   height: 36px;
+  max-width: 80px; /* Fixed max width */
+  width: auto;
   background: linear-gradient(135deg, var(--error-color) 0%, #f87171 100%);
   color: white;
   border: none;
@@ -86,11 +88,13 @@
   font-weight: 600;
   transition: all 0.2s ease;
   box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
-  display: flex;
+  display: inline-flex; /* Changed from flex */
   align-items: center;
   justify-content: center;
   gap: 0.25rem;
   white-space: nowrap;
+  flex-shrink: 0;
+  flex-grow: 0;
 }
 
 .logout-button::before {
