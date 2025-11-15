@@ -48,13 +48,12 @@
   justify-content: flex-end;
   flex-shrink: 0;
   height: 36px;
-  line-height: 36px; /* Match height for perfect alignment */
 }
 
 .filters select {
-  padding: 0.5rem 0.6rem;
+  padding: 0 0.6rem; /* Remove vertical padding */
   height: 36px;
-  line-height: 1.2; /* Better text alignment */
+  line-height: 36px; /* Match height for perfect vertical centering */
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   font-size: var(--font-size-xs);
@@ -74,8 +73,7 @@
   padding-right: 1.5rem;
   box-shadow: var(--shadow-sm);
   flex-shrink: 0;
-  vertical-align: middle; /* Ensure vertical alignment */
-  display: inline-block; /* Better alignment control */
+  box-sizing: border-box; /* Include border in height calculation */
 }
 
 .filters select:focus {
@@ -90,11 +88,11 @@
 }
 
 .filters button {
-  padding: 0.5rem 0.65rem;
+  padding: 0 0.65rem; /* Remove vertical padding */
   height: 36px;
   max-width: 90px;
   width: auto;
-  min-width: 80px; /* Ensure minimum width */
+  min-width: 80px;
   background: linear-gradient(135deg, var(--info-color) 0%, #60a5fa 100%);
   color: white;
   border: none;
@@ -102,17 +100,17 @@
   cursor: pointer;
   font-size: var(--font-size-xs);
   font-weight: 600;
-  line-height: 1; /* Better text alignment */
+  line-height: 36px; /* Match height for perfect vertical centering */
   transition: all 0.2s ease;
   box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
   display: inline-flex;
-  align-items: center;
+  align-items: center; /* Center content vertically */
   justify-content: center;
   gap: 0.2rem;
   white-space: nowrap;
   flex-shrink: 0;
   flex-grow: 0;
-  vertical-align: middle; /* Ensure vertical alignment */
+  box-sizing: border-box; /* Include border in height calculation */
 }
 
 .filters button:not(.revalidate-button)::before {
@@ -145,20 +143,20 @@
   background: linear-gradient(135deg, var(--success-color) 0%, #34d399 100%);
   color: white;
   border: none;
-  padding: 0.5rem 0.65rem;
+  padding: 0 0.65rem; /* Remove vertical padding */
   height: 36px;
   max-width: 100px;
   width: auto;
-  min-width: 90px; /* Ensure minimum width */
+  min-width: 90px;
   box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
   display: inline-flex;
-  align-items: center;
+  align-items: center; /* Center content vertically */
   justify-content: center;
-  gap: 0.2rem; /* Consistent gap */
+  gap: 0.2rem;
   flex-shrink: 0;
   flex-grow: 0;
-  line-height: 1;
-  vertical-align: middle; /* Ensure vertical alignment */
+  line-height: 36px; /* Match height for perfect vertical centering */
+  box-sizing: border-box; /* Include border in height calculation */
 }
 
 .revalidate-button:hover:not(:disabled) {
