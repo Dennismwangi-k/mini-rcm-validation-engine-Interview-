@@ -75,7 +75,7 @@ class ClaimViewSet(viewsets.ModelViewSet):
             
             # Start async revalidation
             try:
-                task = revalidate_all_claims.delay()
+                task = revalidate_all_claims.delay(user_id=request.user.id)
                 return Response({
                     'message': 'Revalidation started',
                     'task_id': task.id,
@@ -93,7 +93,7 @@ class ClaimViewSet(viewsets.ModelViewSet):
                         pass
                 
                 mock_task = MockTask()
-                result = revalidate_all_claims(mock_task)
+                result = revalidate_all_claims(mock_task, user_id=request.user.id)
                 return Response({
                     'message': 'Revalidation completed',
                     'total': result.get('total', 0),

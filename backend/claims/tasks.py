@@ -190,9 +190,22 @@ def process_claims_file(self, job_id: str):
 
 
 @shared_task(bind=True)
-def revalidate_all_claims(self=None):
+def revalidate_all_claims(self=None, user_id=None):
     """Revalidate all claims in database with current rules"""
     try:
+        from django.contrib.auth.models import User
+        
+        # Get the user who triggered the revalidation
+        validated_by_user = None
+        if user_id:
+            try:
+                validated_by_user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                pass
+        
+        # Fallback to system user if no user provided
+        if not validated_by_user:
+            validated_by_user = User.objects.filter(is_superuser=True).first()
         # Load rules from default files
         technical_rules = {}
         medical_rules = {}
@@ -288,13 +301,8 @@ def revalidate_all_claims(self=None):
                     claim.error_type = validation_result['error_type']
                     claim.error_explanation = validation_result['explanations']
                     claim.recommended_action = validation_result['recommended_actions']
-                    # Get current user from request context if available, otherwise use system user
-                    from django.contrib.auth.models import User
-                    try:
-                        system_user = User.objects.filter(is_superuser=True).first()
-                        claim.validated_by = system_user
-                    except:
-                        pass
+                    # Set validated_by to the user who triggered revalidation
+                    claim.validated_by = validated_by_user
                     claim.save()
                 
                 if validation_result['status'] == 'validated':

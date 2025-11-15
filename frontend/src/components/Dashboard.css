@@ -38,17 +38,19 @@
 .header-actions {
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
+  gap: var(--spacing-sm);
+  height: 36px; /* Fixed height for alignment */
 }
 
 .user-profile {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
+  gap: var(--spacing-xs);
   padding: var(--spacing-xs) var(--spacing-sm);
   background: var(--bg-secondary);
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-color);
+  height: 36px; /* Match button height */
 }
 
 .user-avatar {
@@ -97,8 +99,8 @@
 }
 
 .logout-button:hover {
-  background: #dc2626;
-  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+  background: linear-gradient(135deg, #dc2626 0%, var(--error-color) 100%);
+  box-shadow: 0 4px 6px rgba(239, 68, 68, 0.3);
   transform: translateY(-1px);
 }
 
@@ -117,29 +119,35 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: var(--spacing-lg);
-  gap: var(--spacing-lg);
-  flex-wrap: wrap;
-  padding: var(--spacing-lg);
+  gap: var(--spacing-md);
+  flex-wrap: nowrap;
+  padding: var(--spacing-sm) var(--spacing-md);
   background: var(--bg-primary);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--border-color);
+  min-height: 50px;
 }
 
 .dashboard-title {
   margin: 0;
-  font-size: var(--font-size-2xl);
+  font-size: var(--font-size-xl); /* Reduced from 2xl */
   font-weight: 700;
   color: var(--text-primary);
   letter-spacing: -0.02em;
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
+  flex: 1 1 auto; /* Allow to grow but not shrink */
+  white-space: nowrap;
+  min-width: 0; /* Allow text truncation if needed */
 }
 
 .upload-button-main {
-  padding: 0.5rem 0.875rem;
+  padding: 0.5rem 0.75rem;
   height: 36px;
+  max-width: 100px; /* Fixed max width */
+  width: auto; /* Auto width based on content */
   background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%);
   color: white;
   border: none;
@@ -149,7 +157,7 @@
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
-  display: flex;
+  display: inline-flex; /* Changed from flex to inline-flex */
   align-items: center;
   justify-content: center;
   gap: 0.25rem;
@@ -157,6 +165,8 @@
   white-space: nowrap;
   position: relative;
   overflow: hidden;
+  flex-shrink: 0; /* Prevent shrinking */
+  flex-grow: 0; /* Prevent growing */
 }
 
 .upload-button-main::before {

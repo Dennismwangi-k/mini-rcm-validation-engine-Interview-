@@ -8,6 +8,7 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  Cell,
 } from 'recharts';
 import { Statistics } from '../api/claims';
 import './Charts.css';
@@ -17,23 +18,28 @@ interface ChartsProps {
 }
 
 const Charts: React.FC<ChartsProps> = ({ statistics }) => {
+
   // Prepare data for claim counts chart
   const claimCountsData = [
     {
       category: 'No Error',
       count: statistics.error_type_counts.no_error,
+      color: '#10b981',
     },
     {
       category: 'Medical Error',
       count: statistics.error_type_counts.medical_error,
+      color: '#f59e0b',
     },
     {
       category: 'Technical Error',
       count: statistics.error_type_counts.technical_error,
+      color: '#ef4444',
     },
     {
       category: 'Both',
       count: statistics.error_type_counts.both,
+      color: '#8b5cf6',
     },
   ];
 
@@ -42,50 +48,140 @@ const Charts: React.FC<ChartsProps> = ({ statistics }) => {
     {
       category: 'No Error',
       amount: statistics.paid_amount_by_error.no_error,
+      color: '#10b981',
     },
     {
       category: 'Medical Error',
       amount: statistics.paid_amount_by_error.medical_error,
+      color: '#f59e0b',
     },
     {
       category: 'Technical Error',
       amount: statistics.paid_amount_by_error.technical_error,
+      color: '#ef4444',
     },
     {
       category: 'Both',
       amount: statistics.paid_amount_by_error.both,
+      color: '#8b5cf6',
     },
   ];
+
+  // Custom tooltip
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="chart-tooltip">
+          <p className="tooltip-label">{label}</p>
+          <p className="tooltip-value">
+            {payload[0].name === 'count' 
+              ? `${payload[0].value} claims`
+              : `AED ${Number(payload[0].value).toLocaleString()}`}
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
 
   return (
     <div className="charts-container">
       <h2>Validation Results</h2>
       
       <div className="charts-grid">
-        <div className="chart-card">
-          <h3>Claim Counts by Error Category</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={claimCountsData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="category" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="count" fill="#2563eb" radius={[8, 8, 0, 0]} />
+        <div className="chart-card animated-chart">
+          <div className="chart-header">
+            <h3>Claim Counts by Error Category</h3>
+            <div className="chart-icon">📈</div>
+          </div>
+          <ResponsiveContainer width="100%" height={320}>
+            <BarChart 
+              data={claimCountsData}
+              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+            >
+              <defs>
+                {claimCountsData.map((entry, index) => (
+                  <linearGradient key={`gradient-${index}`} id={`gradientCount-${index}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={entry.color} stopOpacity={1} />
+                    <stop offset="100%" stopColor={entry.color} stopOpacity={0.6} />
+                  </linearGradient>
+                ))}
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" opacity={0.5} />
+              <XAxis 
+                dataKey="category" 
+                tick={{ fill: '#64748b', fontSize: 12, fontWeight: 500 }}
+                axisLine={{ stroke: '#cbd5e1' }}
+              />
+              <YAxis 
+                tick={{ fill: '#64748b', fontSize: 12 }}
+                axisLine={{ stroke: '#cbd5e1' }}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend 
+                wrapperStyle={{ paddingTop: '20px' }}
+                iconType="circle"
+              />
+              <Bar 
+                dataKey="count" 
+                name="Claims"
+                radius={[12, 12, 0, 0]}
+                animationDuration={1500}
+                animationBegin={0}
+              >
+                {claimCountsData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={`url(#gradientCount-${index})`} />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
 
-        <div className="chart-card">
-          <h3>Paid Amount (AED) by Error Category</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={paidAmountData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="category" />
-              <YAxis />
-              <Tooltip formatter={(value: number) => `AED ${value.toLocaleString()}`} />
-              <Legend />
-              <Bar dataKey="amount" fill="#3b82f6" radius={[8, 8, 0, 0]} />
+        <div className="chart-card animated-chart">
+          <div className="chart-header">
+            <h3>Paid Amount (AED) by Error Category</h3>
+            <div className="chart-icon">💰</div>
+          </div>
+          <ResponsiveContainer width="100%" height={320}>
+            <BarChart 
+              data={paidAmountData}
+              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+            >
+              <defs>
+                {paidAmountData.map((entry, index) => (
+                  <linearGradient key={`gradient-${index}`} id={`gradientAmount-${index}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={entry.color} stopOpacity={1} />
+                    <stop offset="100%" stopColor={entry.color} stopOpacity={0.6} />
+                  </linearGradient>
+                ))}
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" opacity={0.5} />
+              <XAxis 
+                dataKey="category" 
+                tick={{ fill: '#64748b', fontSize: 12, fontWeight: 500 }}
+                axisLine={{ stroke: '#cbd5e1' }}
+              />
+              <YAxis 
+                tick={{ fill: '#64748b', fontSize: 12 }}
+                axisLine={{ stroke: '#cbd5e1' }}
+                tickFormatter={(value) => `AED ${(value / 1000).toFixed(0)}k`}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend 
+                wrapperStyle={{ paddingTop: '20px' }}
+                iconType="circle"
+              />
+              <Bar 
+                dataKey="amount" 
+                name="Amount (AED)"
+                radius={[12, 12, 0, 0]}
+                animationDuration={1500}
+                animationBegin={200}
+              >
+                {paidAmountData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={`url(#gradientAmount-${index})`} />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
