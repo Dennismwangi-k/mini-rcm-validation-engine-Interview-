@@ -143,7 +143,7 @@ class RuleValidator:
         explanations = []
         recommended_actions = []
         
-        # Check uppercase alphanumeric
+        # Check uppercase alphanumeric - only for non-empty values
         id_fields = {
             'national_id': claim.get('national_id', ''),
             'member_id': claim.get('member_id', ''),
@@ -152,46 +152,64 @@ class RuleValidator:
         }
         
         for field_name, field_value in id_fields.items():
-            if not field_value:
+            if not field_value or str(field_value).strip() == '':
                 continue
             
-            # Check uppercase
-            if field_value != field_value.upper():
-                errors.append(f'{field_name} must be uppercase')
-                explanations.append(
-                    f"{field_name.replace('_', ' ').title()} '{field_value}' must be in uppercase format."
-                )
-                recommended_actions.append(
-                    f"Convert {field_name.replace('_', ' ')} to uppercase: {field_value.upper()}"
-                )
+            field_value = str(field_value).strip()
+            original_value = field_value
             
-            # Check alphanumeric
-            if not re.match(r'^[A-Z0-9]+$', field_value.upper()):
-                errors.append(f'{field_name} contains invalid characters')
-                explanations.append(
-                    f"{field_name.replace('_', ' ').title()} '{field_value}' must contain only alphanumeric characters (A-Z, 0-9)."
-                )
-                recommended_actions.append(
-                    f"Remove special characters from {field_name.replace('_', ' ')}."
-                )
+            # Check uppercase (only warn, don't fail validation for case)
+            if field_value != field_value.upper():
+                # Convert to uppercase for validation but don't fail
+                field_value = field_value.upper()
+            
+            # Check alphanumeric (excluding unique_id which can have hyphens)
+            if field_name != 'unique_id':
+                # For non-unique_id fields, check if they contain only alphanumeric after removing hyphens
+                # (in case they have hyphens that shouldn't be there)
+                cleaned_value = field_value.replace('-', '').replace('_', '')
+                if not re.match(r'^[A-Z0-9]+$', cleaned_value):
+                    errors.append(f'{field_name} contains invalid characters')
+                    explanations.append(
+                        f"{field_name.replace('_', ' ').title()} '{original_value}' must contain only alphanumeric characters (A-Z, 0-9)."
+                    )
+                    recommended_actions.append(
+                        f"Remove special characters from {field_name.replace('_', ' ')}."
+                    )
         
         # Validate unique_id format: first4(National ID) – middle4(Member ID) – last4(Facility ID)
-        unique_id = claim.get('unique_id', '')
-        national_id = claim.get('national_id', '')
-        member_id = claim.get('member_id', '')
-        facility_id = claim.get('facility_id', '')
+        unique_id = str(claim.get('unique_id', '')).strip().upper()
+        national_id = str(claim.get('national_id', '')).strip().upper()
+        member_id = str(claim.get('member_id', '')).strip().upper()
+        facility_id = str(claim.get('facility_id', '')).strip().upper()
         
         if unique_id and national_id and member_id and facility_id:
-            expected_format = f"{national_id[:4]}-{member_id[:4]}-{facility_id[:4]}"
-            if unique_id.upper() != expected_format.upper():
-                errors.append('unique_id format is incorrect')
+            # Only validate if all IDs have at least 4 characters
+            if len(national_id) >= 4 and len(member_id) >= 4 and len(facility_id) >= 4:
+                expected_format = f"{national_id[:4]}-{member_id[:4]}-{facility_id[:4]}"
+                # Normalize unique_id by removing hyphens for comparison
+                unique_id_normalized = unique_id.replace('-', '').replace('_', '')
+                expected_normalized = expected_format.replace('-', '').replace('_', '')
+                
+                if unique_id_normalized != expected_normalized:
+                    errors.append('unique_id format is incorrect')
+                    explanations.append(
+                        f"Unique ID '{unique_id}' does not match the required format. "
+                        f"Expected format: first 4 characters of National ID, middle 4 of Member ID, "
+                        f"last 4 of Facility ID, hyphen-separated. Expected: {expected_format}"
+                    )
+                    recommended_actions.append(
+                        f"Correct unique_id format to: {expected_format}"
+                    )
+            
+            # Check if unique_id contains only alphanumeric and hyphens
+            if unique_id and not re.match(r'^[A-Z0-9\-]+$', unique_id):
+                errors.append('unique_id contains invalid characters')
                 explanations.append(
-                    f"Unique ID '{unique_id}' does not match the required format. "
-                    f"Expected format: first 4 characters of National ID, middle 4 of Member ID, "
-                    f"last 4 of Facility ID, hyphen-separated. Expected: {expected_format}"
+                    f"Unique ID '{unique_id}' must contain only alphanumeric characters (A-Z, 0-9) and hyphens."
                 )
                 recommended_actions.append(
-                    f"Correct unique_id format to: {expected_format}"
+                    f"Remove invalid characters from unique_id."
                 )
         
         return {

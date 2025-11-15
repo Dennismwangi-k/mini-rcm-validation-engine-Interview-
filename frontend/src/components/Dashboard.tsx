@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import FileUpload from './FileUpload';
+import UploadModal from './UploadModal';
 import Charts from './Charts';
 import ClaimsTable from './ClaimsTable';
 import { claimsAPI, Statistics } from '../api/claims';
 import './Dashboard.css';
+import './Responsive.css';
 
 const Dashboard: React.FC = () => {
   const [statistics, setStatistics] = useState<Statistics | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'upload' | 'results'>('upload');
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -41,48 +42,60 @@ const Dashboard: React.FC = () => {
       <header className="dashboard-header">
         <h1>RCM Validation Engine</h1>
         <div className="header-actions">
-          <span>Welcome, {user.username}</span>
-          <button onClick={handleLogout}>Logout</button>
+          <div className="user-profile">
+            <div className="user-avatar">
+              {user.username ? user.username.charAt(0).toUpperCase() : 'U'}
+            </div>
+            <span className="user-name">{user.username || 'User'}</span>
+          </div>
+          <button className="logout-button" onClick={handleLogout}>Logout</button>
         </div>
       </header>
 
       <div className="dashboard-content">
-        <div className="tabs-wrapper">
-          <div className={`tabs ${activeTab === 'results' ? 'results-active' : ''}`}>
-            <button
-              className={activeTab === 'upload' ? 'active' : ''}
-              onClick={() => setActiveTab('upload')}
-            >
-              Upload Files
-            </button>
-            <button
-              className={activeTab === 'results' ? 'active' : ''}
-              onClick={() => setActiveTab('results')}
-            >
-              Results
-            </button>
-          </div>
+        <div className="dashboard-header-actions">
+          <h2 className="dashboard-title">📊 Validation Results</h2>
+          <button 
+            className="upload-button-main"
+            onClick={() => setUploadModalOpen(true)}
+            title="Upload and validate claims"
+          >
+            <span>📤</span>
+            <span>Upload</span>
+          </button>
         </div>
 
-        {activeTab === 'upload' && (
-          <FileUpload onUploadComplete={loadStatistics} />
-        )}
-
-        {activeTab === 'results' && (
-          <div className="results-container">
-            {loading ? (
-              <div className="loading">Loading statistics...</div>
-            ) : statistics ? (
-              <>
-                <Charts statistics={statistics} />
-                <ClaimsTable onRefresh={loadStatistics} />
-              </>
-            ) : (
-              <div className="no-data">No data available. Please upload a claims file.</div>
-            )}
-          </div>
-        )}
+        <div className="results-container">
+          {loading ? (
+            <div className="loading">Loading statistics...</div>
+          ) : statistics ? (
+            <>
+              <Charts statistics={statistics} />
+              <ClaimsTable onRefresh={loadStatistics} />
+            </>
+          ) : (
+            <div className="no-data">
+              <div className="no-data-icon">📭</div>
+              <h3>No data available</h3>
+              <p>Click "Upload & Validate" to start processing claims</p>
+              <button 
+                className="upload-button-main"
+                onClick={() => setUploadModalOpen(true)}
+                title="Upload and validate claims"
+              >
+                <span>📤</span>
+                <span>Upload</span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
+
+      <UploadModal
+        isOpen={uploadModalOpen}
+        onClose={() => setUploadModalOpen(false)}
+        onUploadComplete={loadStatistics}
+      />
     </div>
   );
 };

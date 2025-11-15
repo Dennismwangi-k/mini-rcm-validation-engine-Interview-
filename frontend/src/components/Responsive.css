@@ -1,0 +1,238 @@
+/* Responsive Design for All Devices */
+
+/* Mobile First Approach */
+@media (max-width: 768px) {
+  .dashboard-header {
+    padding: var(--spacing-sm) var(--spacing-md);
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+  }
+
+  .dashboard-header h1 {
+    font-size: var(--font-size-lg);
+  }
+
+  .header-actions {
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .user-profile {
+    padding: var(--spacing-xs);
+  }
+
+  .user-avatar {
+    width: 28px;
+    height: 28px;
+    font-size: 11px;
+  }
+
+  .user-name {
+    font-size: 11px;
+  }
+
+  .logout-button {
+    padding: 0.4rem 0.75rem;
+    font-size: 11px;
+  }
+
+  .dashboard-content {
+    padding: var(--spacing-md);
+  }
+
+  .dashboard-header-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+  }
+
+  .dashboard-title {
+    font-size: var(--font-size-xl);
+  }
+
+  .upload-button-main {
+    width: 100%;
+    justify-content: center;
+    padding: 0.75rem 1rem;
+  }
+
+  .charts-container {
+    padding: var(--spacing-md);
+  }
+
+  .charts-container h2 {
+    font-size: var(--font-size-xl);
+  }
+
+  .charts-grid {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-md);
+  }
+
+  .summary-stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-sm);
+  }
+
+  .stat-card {
+    padding: var(--spacing-md);
+  }
+
+  .stat-value {
+    font-size: var(--font-size-2xl);
+  }
+
+  .claims-table-container {
+    padding: var(--spacing-md);
+  }
+
+  .table-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md);
+  }
+
+  .table-header h2 {
+    font-size: var(--font-size-lg);
+  }
+
+  .filters {
+    flex-direction: column;
+    width: 100%;
+    gap: var(--spacing-sm);
+  }
+
+  .filters select {
+    width: 100%;
+    min-width: auto;
+  }
+
+  .filters button {
+    width: 100%;
+    justify-content: center;
+    padding: 0.625rem 1rem;
+  }
+
+  .table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .claims-table {
+    min-width: 800px;
+    font-size: 11px;
+  }
+
+  .claims-table th {
+    padding: var(--spacing-sm) var(--spacing-xs);
+    font-size: 9px;
+  }
+
+  .claims-table td {
+    padding: var(--spacing-sm) var(--spacing-xs);
+    font-size: 11px;
+  }
+
+  .badge {
+    padding: 0.25rem 0.5rem;
+    font-size: 9px;
+  }
+
+  .validator-avatar {
+    width: 20px;
+    height: 20px;
+    font-size: 9px;
+  }
+
+  .validator-name {
+    font-size: 10px;
+  }
+}
+
+/* Tablet */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .dashboard-content {
+    padding: var(--spacing-lg);
+  }
+
+  .charts-grid {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-lg);
+  }
+
+  .summary-stats {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .table-header {
+    flex-wrap: wrap;
+  }
+
+  .filters {
+    flex-wrap: wrap;
+  }
+
+  .claims-table {
+    min-width: 1000px;
+  }
+}
+
+/* Small Desktop */
+@media (min-width: 1025px) and (max-width: 1440px) {
+  .charts-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .summary-stats {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* Large Desktop */
+@media (min-width: 1441px) {
+  .dashboard-content {
+    max-width: 1800px;
+  }
+
+  .charts-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Print Styles */
+@media print {
+  .dashboard-header,
+  .dashboard-header-actions,
+  .filters,
+  .upload-button-main {
+    display: none;
+  }
+
+  .claims-table {
+    min-width: auto;
+  }
+}
+
+/* High DPI Displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .user-avatar,
+  .validator-avatar {
+    border: 0.5px solid rgba(255, 255, 255, 0.2);
+  }
+}
+
+/* Landscape Orientation on Mobile */
+@media (max-width: 768px) and (orientation: landscape) {
+  .dashboard-header {
+    min-height: 56px;
+  }
+
+  .summary-stats {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+

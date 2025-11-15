@@ -19,6 +19,8 @@ export interface Claim {
   recommended_action: string;
   created_at: string;
   updated_at: string;
+  uploaded_by_username?: string | null;
+  validated_by_username?: string | null;
 }
 
 export interface ValidationJob {
@@ -92,6 +94,11 @@ export const claimsAPI = {
   
   getJobs: async () => {
     const response = await api.get('/jobs/');
+    return response.data;
+  },
+  
+  revalidateAll: async () => {
+    const response = await api.post('/claims/revalidate/');
     return response.data;
   },
 };

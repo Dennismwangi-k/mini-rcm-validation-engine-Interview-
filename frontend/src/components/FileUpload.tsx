@@ -91,7 +91,42 @@ const FileUpload: React.FC<FileUploadProps> = ({ onUploadComplete }) => {
       setTechnicalRulesFile(null);
       setMedicalRulesFile(null);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Upload failed');
+      console.error('Upload error:', err);
+      let errorMessage = 'Upload failed';
+      
+      if (err.response) {
+        // Server responded with error
+        if (err.response.data) {
+          if (typeof err.response.data === 'string') {
+            errorMessage = err.response.data;
+          } else if (err.response.data.error) {
+            errorMessage = err.response.data.error;
+          } else if (err.response.data.detail) {
+            errorMessage = err.response.data.detail;
+          } else if (err.response.data.message) {
+            errorMessage = err.response.data.message;
+          } else {
+            // Try to extract error from non_field_errors or first field error
+            const data = err.response.data;
+            if (data.non_field_errors && data.non_field_errors.length > 0) {
+              errorMessage = data.non_field_errors[0];
+            } else {
+              const firstKey = Object.keys(data)[0];
+              if (firstKey && Array.isArray(data[firstKey]) && data[firstKey].length > 0) {
+                errorMessage = `${firstKey}: ${data[firstKey][0]}`;
+              }
+            }
+          }
+        } else {
+          errorMessage = `Server error: ${err.response.status} ${err.response.statusText}`;
+        }
+      } else if (err.request) {
+        errorMessage = 'Network error: Could not connect to server. Please check if the backend is running.';
+      } else {
+        errorMessage = err.message || 'Upload failed';
+      }
+      
+      setError(errorMessage);
     } finally {
       setUploading(false);
     }

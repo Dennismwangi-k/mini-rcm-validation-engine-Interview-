@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { claimsAPI, Claim } from '../api/claims';
 import './ClaimsTable.css';
+import '../components/Responsive.css';
 
 interface ClaimsTableProps {
   onRefresh: () => void;
@@ -9,6 +10,8 @@ interface ClaimsTableProps {
 const ClaimsTable: React.FC<ClaimsTableProps> = ({ onRefresh }) => {
   const [claims, setClaims] = useState<Claim[]>([]);
   const [loading, setLoading] = useState(true);
+  const [revalidating, setRevalidating] = useState(false);
+  const [revalidateMessage, setRevalidateMessage] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [filters, setFilters] = useState({
@@ -28,14 +31,94 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({ onRefresh }) => {
       if (filters.error_type) params.error_type = filters.error_type;
 
       const response = await claimsAPI.getClaims(params);
-      setClaims(response.results || response);
-      if (response.count) {
-        setTotalPages(Math.ceil(response.count / 100));
+      console.log('Claims API Response:', response); // Debug log
+      
+      // Handle both paginated and non-paginated responses
+      let claimsData: Claim[] = [];
+      
+      if (Array.isArray(response)) {
+        claimsData = response;
+        setTotalPages(1);
+      } else if (response.results && Array.isArray(response.results)) {
+        claimsData = response.results;
+        setTotalPages(Math.ceil((response.count || response.results.length) / 100));
+      } else if (response && typeof response === 'object') {
+        // Try to extract claims from various possible response formats
+        const possibleKeys = ['data', 'claims', 'items'];
+        for (const key of possibleKeys) {
+          if (Array.isArray(response[key])) {
+            claimsData = response[key];
+            break;
+          }
+        }
+        setTotalPages(1);
       }
+      
+      // Ensure paid_amount_aed is a number
+      claimsData = claimsData.map(claim => ({
+        ...claim,
+        paid_amount_aed: typeof claim.paid_amount_aed === 'string' 
+          ? parseFloat(claim.paid_amount_aed) 
+          : claim.paid_amount_aed || 0
+      }));
+      
+      setClaims(claimsData);
+      console.log('Processed claims:', claimsData.length, claimsData);
     } catch (error) {
       console.error('Failed to load claims:', error);
+      setClaims([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRevalidate = async () => {
+    if (!window.confirm('Are you sure you want to revalidate all claims? This will update all validation results with current rules.')) {
+      return;
+    }
+
+    setRevalidating(true);
+    setRevalidateMessage('');
+    
+    try {
+      const result = await claimsAPI.revalidateAll();
+      
+      if (result.status === 'completed') {
+        setRevalidateMessage(`✅ Revalidation completed! ${result.processed} claims processed, ${result.validated} validated, ${result.errors} errors.`);
+        
+        // Reload claims after a short delay
+        setTimeout(() => {
+          loadClaims();
+          onRefresh();
+        }, 1000);
+      } else if (result.status === 'processing') {
+        setRevalidateMessage(`🔄 Revalidation started! Processing ${result.total} claims...`);
+        
+        // Poll for completion (simple polling for now)
+        const checkInterval = setInterval(async () => {
+          try {
+            // Check if claims have changed by reloading
+            await loadClaims();
+            onRefresh();
+            
+            // After a delay, stop polling
+            setTimeout(() => {
+              clearInterval(checkInterval);
+              setRevalidateMessage('✅ Revalidation completed!');
+              setRevalidating(false);
+            }, 5000);
+          } catch (error) {
+            console.error('Failed to check revalidation status:', error);
+          }
+        }, 2000);
+      }
+    } catch (error: any) {
+      console.error('Revalidation error:', error);
+      setRevalidateMessage(`❌ Error: ${error.response?.data?.detail || error.message || 'Failed to revalidate claims'}`);
+    } finally {
+      setTimeout(() => {
+        setRevalidating(false);
+      }, 2000);
     }
   };
 
@@ -98,9 +181,37 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({ onRefresh }) => {
             <option value="technical_error">Technical Error</option>
             <option value="both">Both</option>
           </select>
-          <button onClick={loadClaims}>Refresh</button>
+          <button onClick={loadClaims} title="Refresh claims">
+            <span>🔄</span>
+            <span>Refresh</span>
+          </button>
+          <button 
+            onClick={handleRevalidate} 
+            disabled={revalidating}
+            className="revalidate-button"
+            title="Revalidate all claims with current rules"
+          >
+            {revalidating ? (
+              <>
+                <span className="button-spinner"></span>
+                <span>Revalidate</span>
+              </>
+            ) : (
+              <>
+                <span>🔄</span>
+                <span>Revalidate</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
+
+      {revalidateMessage && (
+        <div className={`alert-message ${revalidateMessage.includes('✅') ? 'success-message' : revalidateMessage.includes('❌') ? 'error-message' : 'info-message'}`}>
+          <span className="alert-icon">{revalidateMessage.includes('✅') ? '✅' : revalidateMessage.includes('❌') ? '❌' : '🔄'}</span>
+          <span>{revalidateMessage}</span>
+        </div>
+      )}
 
       <div className="table-wrapper">
         <table className="claims-table">
@@ -111,6 +222,7 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({ onRefresh }) => {
               <th>Status</th>
               <th>Error Type</th>
               <th>Paid Amount (AED)</th>
+              <th>Validated By</th>
               <th>Error Explanation</th>
               <th>Recommended Action</th>
             </tr>
@@ -118,7 +230,7 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({ onRefresh }) => {
           <tbody>
             {claims.length === 0 ? (
               <tr>
-                <td colSpan={7} className="no-data">
+                <td colSpan={8} className="no-data">
                   No claims found
                 </td>
               </tr>
@@ -137,14 +249,30 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({ onRefresh }) => {
                       {formatErrorType(claim.error_type)}
                     </span>
                   </td>
-                  <td>{claim.paid_amount_aed.toLocaleString()}</td>
+                  <td>{typeof claim.paid_amount_aed === 'number' 
+                    ? claim.paid_amount_aed.toFixed(2) 
+                    : parseFloat(claim.paid_amount_aed || '0').toFixed(2)}</td>
+                  <td>
+                    <div className="validator-info">
+                      {claim.validated_by_username ? (
+                        <>
+                          <span className="validator-avatar">
+                            {claim.validated_by_username.charAt(0).toUpperCase()}
+                          </span>
+                          <span className="validator-name">{claim.validated_by_username}</span>
+                        </>
+                      ) : (
+                        <span className="validator-name">System</span>
+                      )}
+                    </div>
+                  </td>
                   <td className="explanation-cell">
                     {claim.error_explanation ? (
                       <div style={{ whiteSpace: 'pre-line' }}>
                         {claim.error_explanation}
                       </div>
                     ) : (
-                      'N/A'
+                      '-'
                     )}
                   </td>
                   <td className="action-cell">
@@ -153,7 +281,7 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({ onRefresh }) => {
                         {claim.recommended_action}
                       </div>
                     ) : (
-                      'N/A'
+                      '-'
                     )}
                   </td>
                 </tr>
