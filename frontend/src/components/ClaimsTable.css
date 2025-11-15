@@ -222,11 +222,17 @@
   font-weight: 500;
 }
 
+.diagnosis-cell {
+  max-width: 200px;
+  word-wrap: break-word;
+  word-break: break-word;
+}
+
 .claims-table {
   width: 100%;
   border-collapse: collapse;
   background: var(--bg-primary);
-  min-width: 1200px;
+  min-width: 1800px; /* Increased for all required columns */
 }
 
 .claims-table th {

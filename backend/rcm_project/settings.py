@@ -86,21 +86,21 @@ WSGI_APPLICATION = 'rcm_project.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-DATABASE_URL = os.getenv('DATABASE_URL', '')
-if DATABASE_URL:
-    # Parse PostgreSQL URL
-    import dj_database_url
-    DATABASES = {
-        'default': dj_database_url.parse(DATABASE_URL)
+# Hardcoded PostgreSQL database configuration (Render database)
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'pylap_yecr',
+        'USER': 'pylap',
+        'PASSWORD': '1ZW8FW3FFG1MRY8yYLS2jkSaWuTaxGI9',
+        'HOST': 'dpg-d4cfuu7diees7393cjv0-a.oregon-postgres.render.com',
+        'PORT': '5432',
+        'CONN_MAX_AGE': 600,  # Connection pooling
+        'OPTIONS': {
+            'connect_timeout': 10,
+        },
     }
-else:
-    # Default to SQLite for local development
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
-    }
+}
 
 
 # Password validation

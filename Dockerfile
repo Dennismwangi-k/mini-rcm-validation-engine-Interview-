@@ -19,8 +19,9 @@ FROM python:3.9-slim
 
 WORKDIR /app
 
-# Install system dependencies (SQLite is included in Python, no need for PostgreSQL)
+# Install system dependencies (PostgreSQL client for database connections)
 RUN apt-get update && apt-get install -y \
+    postgresql-client \
     nginx \
     gettext-base \
     && rm -rf /var/lib/apt/lists/*

@@ -218,19 +218,27 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({ onRefresh }) => {
           <thead>
             <tr>
               <th>Claim ID</th>
+              <th>Encounter Type</th>
+              <th>Service Date</th>
+              <th>National ID</th>
+              <th>Member ID</th>
+              <th>Facility ID</th>
+              <th>Unique ID</th>
+              <th>Diagnosis Codes</th>
               <th>Service Code</th>
+              <th>Paid Amount (AED)</th>
+              <th>Approval Number</th>
               <th>Status</th>
               <th>Error Type</th>
-              <th>Paid Amount (AED)</th>
-              <th>Validated By</th>
               <th>Error Explanation</th>
               <th>Recommended Action</th>
+              <th>Validated By</th>
             </tr>
           </thead>
           <tbody>
             {claims.length === 0 ? (
               <tr>
-                <td colSpan={8} className="no-data">
+                <td colSpan={16} className="no-data">
                   No claims found
                 </td>
               </tr>
@@ -238,7 +246,18 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({ onRefresh }) => {
               claims.map((claim) => (
                 <tr key={claim.id}>
                   <td>{claim.claim_id}</td>
+                  <td>{claim.encounter_type || '-'}</td>
+                  <td>{claim.service_date ? new Date(claim.service_date).toLocaleDateString() : '-'}</td>
+                  <td>{claim.national_id || '-'}</td>
+                  <td>{claim.member_id || '-'}</td>
+                  <td>{claim.facility_id || '-'}</td>
+                  <td>{claim.unique_id || '-'}</td>
+                  <td className="diagnosis-cell">{claim.diagnosis_codes || '-'}</td>
                   <td>{claim.service_code}</td>
+                  <td>{typeof claim.paid_amount_aed === 'number' 
+                    ? claim.paid_amount_aed.toFixed(2) 
+                    : parseFloat(claim.paid_amount_aed || '0').toFixed(2)}</td>
+                  <td>{claim.approval_number || '-'}</td>
                   <td>
                     <span className={`badge ${getStatusBadge(claim.status)}`}>
                       {formatStatus(claim.status)}
@@ -248,23 +267,6 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({ onRefresh }) => {
                     <span className={`badge ${getErrorTypeBadge(claim.error_type)}`}>
                       {formatErrorType(claim.error_type)}
                     </span>
-                  </td>
-                  <td>{typeof claim.paid_amount_aed === 'number' 
-                    ? claim.paid_amount_aed.toFixed(2) 
-                    : parseFloat(claim.paid_amount_aed || '0').toFixed(2)}</td>
-                  <td>
-                    <div className="validator-info">
-                      {claim.validated_by_username ? (
-                        <>
-                          <span className="validator-avatar">
-                            {claim.validated_by_username.charAt(0).toUpperCase()}
-                          </span>
-                          <span className="validator-name">{claim.validated_by_username}</span>
-                        </>
-                      ) : (
-                        <span className="validator-name">System</span>
-                      )}
-                    </div>
                   </td>
                   <td className="explanation-cell">
                     {claim.error_explanation ? (
@@ -283,6 +285,20 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({ onRefresh }) => {
                     ) : (
                       '-'
                     )}
+                  </td>
+                  <td>
+                    <div className="validator-info">
+                      {claim.validated_by_username ? (
+                        <>
+                          <span className="validator-avatar">
+                            {claim.validated_by_username.charAt(0).toUpperCase()}
+                          </span>
+                          <span className="validator-name">{claim.validated_by_username}</span>
+                        </>
+                      ) : (
+                        <span className="validator-name">System</span>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))
