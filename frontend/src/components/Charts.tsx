@@ -19,53 +19,46 @@ interface ChartsProps {
 
 const Charts: React.FC<ChartsProps> = ({ statistics }) => {
 
-  // Prepare data for claim counts chart
-  const claimCountsData = [
-    {
-      category: 'No Error',
-      count: statistics.error_type_counts.no_error,
-      color: '#10b981',
-    },
-    {
-      category: 'Medical Error',
-      count: statistics.error_type_counts.medical_error,
-      color: '#f59e0b',
-    },
-    {
-      category: 'Technical Error',
-      count: statistics.error_type_counts.technical_error,
-      color: '#ef4444',
-    },
-    {
-      category: 'Both',
-      count: statistics.error_type_counts.both,
-      color: '#8b5cf6',
-    },
+  // Prepare data for waterfall chart - claim counts
+  // Waterfall shows cumulative values
+  const claimCountsRaw = [
+    { category: 'No Error', count: statistics.error_type_counts.no_error, color: '#10b981' },
+    { category: 'Medical Error', count: statistics.error_type_counts.medical_error, color: '#f59e0b' },
+    { category: 'Technical Error', count: statistics.error_type_counts.technical_error, color: '#ef4444' },
+    { category: 'Both', count: statistics.error_type_counts.both, color: '#8b5cf6' },
   ];
 
-  // Prepare data for paid amount chart
-  const paidAmountData = [
-    {
-      category: 'No Error',
-      amount: statistics.paid_amount_by_error.no_error,
-      color: '#10b981',
-    },
-    {
-      category: 'Medical Error',
-      amount: statistics.paid_amount_by_error.medical_error,
-      color: '#f59e0b',
-    },
-    {
-      category: 'Technical Error',
-      amount: statistics.paid_amount_by_error.technical_error,
-      color: '#ef4444',
-    },
-    {
-      category: 'Both',
-      amount: statistics.paid_amount_by_error.both,
-      color: '#8b5cf6',
-    },
+  // Calculate cumulative values for waterfall
+  let cumulativeCount = 0;
+  const claimCountsData = claimCountsRaw.map((item) => {
+    const start = cumulativeCount;
+    cumulativeCount += item.count;
+    return {
+      ...item,
+      start,
+      end: cumulativeCount,
+    };
+  });
+
+  // Prepare data for waterfall chart - paid amount
+  const paidAmountRaw = [
+    { category: 'No Error', amount: statistics.paid_amount_by_error.no_error, color: '#10b981' },
+    { category: 'Medical Error', amount: statistics.paid_amount_by_error.medical_error, color: '#f59e0b' },
+    { category: 'Technical Error', amount: statistics.paid_amount_by_error.technical_error, color: '#ef4444' },
+    { category: 'Both', amount: statistics.paid_amount_by_error.both, color: '#8b5cf6' },
   ];
+
+  // Calculate cumulative values for waterfall
+  let cumulativeAmount = 0;
+  const paidAmountData = paidAmountRaw.map((item) => {
+    const start = cumulativeAmount;
+    cumulativeAmount += item.amount;
+    return {
+      ...item,
+      start,
+      end: cumulativeAmount,
+    };
+  });
 
   // Custom tooltip
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -86,7 +79,7 @@ const Charts: React.FC<ChartsProps> = ({ statistics }) => {
 
   return (
     <div className="charts-container">
-      <h2>Validation Results</h2>
+      <h2>Waterfall Charts</h2>
       
       <div className="charts-grid">
         <div className="chart-card animated-chart">
@@ -117,7 +110,23 @@ const Charts: React.FC<ChartsProps> = ({ statistics }) => {
                 tick={{ fill: '#64748b', fontSize: 12 }}
                 axisLine={{ stroke: '#cbd5e1' }}
               />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip 
+                content={({ active, payload }) => {
+                  if (active && payload && payload.length) {
+                    const data = payload[0].payload;
+                    return (
+                      <div className="chart-tooltip">
+                        <p className="tooltip-label">{data.category}</p>
+                        <p className="tooltip-value">{data.count} claims</p>
+                        <p className="tooltip-value" style={{ fontSize: '11px', color: '#64748b' }}>
+                          Cumulative: {data.end}
+                        </p>
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
+              />
               <Legend 
                 wrapperStyle={{ paddingTop: '20px' }}
                 iconType="circle"
@@ -128,9 +137,20 @@ const Charts: React.FC<ChartsProps> = ({ statistics }) => {
                 radius={[12, 12, 0, 0]}
                 animationDuration={1500}
                 animationBegin={0}
+                stackId="waterfall"
               >
                 {claimCountsData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={`url(#gradientCount-${index})`} />
+                ))}
+              </Bar>
+              {/* Base bars for waterfall effect */}
+              <Bar 
+                dataKey="start" 
+                stackId="waterfall"
+                fill="transparent"
+              >
+                {claimCountsData.map((entry, index) => (
+                  <Cell key={`base-${index}`} fill="transparent" />
                 ))}
               </Bar>
             </BarChart>
@@ -166,7 +186,23 @@ const Charts: React.FC<ChartsProps> = ({ statistics }) => {
                 axisLine={{ stroke: '#cbd5e1' }}
                 tickFormatter={(value) => `AED ${(value / 1000).toFixed(0)}k`}
               />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip 
+                content={({ active, payload }) => {
+                  if (active && payload && payload.length) {
+                    const data = payload[0].payload;
+                    return (
+                      <div className="chart-tooltip">
+                        <p className="tooltip-label">{data.category}</p>
+                        <p className="tooltip-value">AED {Number(data.amount).toLocaleString()}</p>
+                        <p className="tooltip-value" style={{ fontSize: '11px', color: '#64748b' }}>
+                          Cumulative: AED {Number(data.end).toLocaleString()}
+                        </p>
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
+              />
               <Legend 
                 wrapperStyle={{ paddingTop: '20px' }}
                 iconType="circle"
@@ -177,9 +213,20 @@ const Charts: React.FC<ChartsProps> = ({ statistics }) => {
                 radius={[12, 12, 0, 0]}
                 animationDuration={1500}
                 animationBegin={200}
+                stackId="waterfall"
               >
                 {paidAmountData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={`url(#gradientAmount-${index})`} />
+                ))}
+              </Bar>
+              {/* Base bars for waterfall effect */}
+              <Bar 
+                dataKey="start" 
+                stackId="waterfall"
+                fill="transparent"
+              >
+                {paidAmountData.map((entry, index) => (
+                  <Cell key={`base-${index}`} fill="transparent" />
                 ))}
               </Bar>
             </BarChart>

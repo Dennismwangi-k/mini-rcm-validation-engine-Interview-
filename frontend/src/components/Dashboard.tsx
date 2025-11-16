@@ -56,7 +56,7 @@ const Dashboard: React.FC = () => {
 
       <div className="dashboard-content">
         <div className="dashboard-header-actions">
-          <h2 className="dashboard-title">📊 Validation Results</h2>
+          <h2 className="dashboard-title">📤 Upload Document</h2>
           <div className="action-buttons">
             <button 
               className="ruleset-button"
