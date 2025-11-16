@@ -66,6 +66,8 @@ const RuleSetManager: React.FC<RuleSetManagerProps> = ({ onClose }) => {
           description: formData.description,
           is_active: formData.is_active,
           paid_amount_threshold: formData.paid_amount_threshold,
+          technical_rules_file: formData.technical_rules_file || undefined,
+          medical_rules_file: formData.medical_rules_file || undefined,
         });
         setMessage({ type: 'success', text: 'Rule set created successfully!' });
       }
@@ -228,29 +230,25 @@ const RuleSetManager: React.FC<RuleSetManagerProps> = ({ onClose }) => {
               </div>
             </div>
 
-            {editingId && (
-              <>
-                <div className="form-group">
-                  <label>Technical Rules File (PDF)</label>
-                  <input
-                    type="file"
-                    accept=".pdf"
-                    onChange={(e) => setFormData({ ...formData, technical_rules_file: e.target.files?.[0] || null })}
-                  />
-                  <small>Upload new technical rules file to replace existing</small>
-                </div>
+            <div className="form-group">
+              <label>Technical Rules File (PDF) {editingId ? '(Optional - upload to replace existing)' : '(Optional)'}</label>
+              <input
+                type="file"
+                accept=".pdf"
+                onChange={(e) => setFormData({ ...formData, technical_rules_file: e.target.files?.[0] || null })}
+              />
+              <small>{editingId ? 'Upload new technical rules file to replace existing' : 'Upload technical rules PDF file'}</small>
+            </div>
 
-                <div className="form-group">
-                  <label>Medical Rules File (PDF)</label>
-                  <input
-                    type="file"
-                    accept=".pdf"
-                    onChange={(e) => setFormData({ ...formData, medical_rules_file: e.target.files?.[0] || null })}
-                  />
-                  <small>Upload new medical rules file to replace existing</small>
-                </div>
-              </>
-            )}
+            <div className="form-group">
+              <label>Medical Rules File (PDF) {editingId ? '(Optional - upload to replace existing)' : '(Optional)'}</label>
+              <input
+                type="file"
+                accept=".pdf"
+                onChange={(e) => setFormData({ ...formData, medical_rules_file: e.target.files?.[0] || null })}
+              />
+              <small>{editingId ? 'Upload new medical rules file to replace existing' : 'Upload medical rules PDF file'}</small>
+            </div>
 
             <div className="form-actions">
               <button type="submit" className="btn-primary">

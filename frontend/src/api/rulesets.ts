@@ -19,6 +19,8 @@ export interface CreateRuleSetData {
   description?: string;
   is_active?: boolean;
   paid_amount_threshold?: number;
+  technical_rules_file?: File;
+  medical_rules_file?: File;
 }
 
 export interface UpdateRuleSetData extends Partial<CreateRuleSetData> {
@@ -50,7 +52,26 @@ export const rulesetsAPI = {
   },
 
   createRuleSet: async (data: CreateRuleSetData) => {
-    const response = await api.post('/rulesets/', data);
+    const formData = new FormData();
+    
+    formData.append('name', data.name);
+    if (data.description !== undefined) formData.append('description', data.description || '');
+    if (data.is_active !== undefined) formData.append('is_active', data.is_active.toString());
+    if (data.paid_amount_threshold !== undefined) {
+      formData.append('paid_amount_threshold', data.paid_amount_threshold.toString());
+    }
+    if (data.technical_rules_file) {
+      formData.append('technical_rules_file', data.technical_rules_file);
+    }
+    if (data.medical_rules_file) {
+      formData.append('medical_rules_file', data.medical_rules_file);
+    }
+
+    const response = await api.post('/rulesets/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
     return response.data;
   },
 
