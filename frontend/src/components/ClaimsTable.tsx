@@ -161,7 +161,7 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({ onRefresh }) => {
   return (
     <div className="claims-table-container">
       <div className="table-header">
-        <h2>Claims Details</h2>
+        <h2>Results Table</h2>
         <div className="filters">
           <select
             value={filters.status}
