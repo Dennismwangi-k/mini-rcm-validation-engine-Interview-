@@ -12,13 +12,13 @@ const RuleSetManager: React.FC<RuleSetManagerProps> = ({ onClose }) => {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [formData, setFormData] = useState<CreateRuleSetData & { technical_rules_file?: File | null; medical_rules_file?: File | null }>({
+  const [formData, setFormData] = useState<CreateRuleSetData & { technical_rules_file?: File; medical_rules_file?: File }>({
     name: '',
     description: '',
     is_active: false,
     paid_amount_threshold: 250.00,
-    technical_rules_file: null,
-    medical_rules_file: null,
+    technical_rules_file: undefined,
+    medical_rules_file: undefined,
   });
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -122,8 +122,8 @@ const RuleSetManager: React.FC<RuleSetManagerProps> = ({ onClose }) => {
       description: ruleset.description || '',
       is_active: ruleset.is_active,
       paid_amount_threshold: ruleset.paid_amount_threshold,
-      technical_rules_file: null,
-      medical_rules_file: null,
+      technical_rules_file: undefined,
+      medical_rules_file: undefined,
     });
     setShowForm(true);
   };
@@ -134,8 +134,8 @@ const RuleSetManager: React.FC<RuleSetManagerProps> = ({ onClose }) => {
       description: '',
       is_active: false,
       paid_amount_threshold: 250.00,
-      technical_rules_file: null,
-      medical_rules_file: null,
+      technical_rules_file: undefined,
+      medical_rules_file: undefined,
     });
     setEditingId(null);
     setShowForm(false);
@@ -235,7 +235,7 @@ const RuleSetManager: React.FC<RuleSetManagerProps> = ({ onClose }) => {
               <input
                 type="file"
                 accept=".pdf"
-                onChange={(e) => setFormData({ ...formData, technical_rules_file: e.target.files?.[0] || null })}
+                    onChange={(e) => setFormData({ ...formData, technical_rules_file: e.target.files?.[0] })}
               />
               <small>{editingId ? 'Upload new technical rules file to replace existing' : 'Upload technical rules PDF file'}</small>
             </div>
@@ -245,7 +245,7 @@ const RuleSetManager: React.FC<RuleSetManagerProps> = ({ onClose }) => {
               <input
                 type="file"
                 accept=".pdf"
-                onChange={(e) => setFormData({ ...formData, medical_rules_file: e.target.files?.[0] || null })}
+                    onChange={(e) => setFormData({ ...formData, medical_rules_file: e.target.files?.[0] })}
               />
               <small>{editingId ? 'Upload new medical rules file to replace existing' : 'Upload medical rules PDF file'}</small>
             </div>
