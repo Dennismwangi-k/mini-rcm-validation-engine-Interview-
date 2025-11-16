@@ -201,9 +201,9 @@ class RuleValidator:
                     recommended_actions.append(
                         f"Correct unique_id format to: {expected_format}"
                     )
-            
-            # Check if unique_id contains only alphanumeric and hyphens
-            if unique_id and not re.match(r'^[A-Z0-9\-]+$', unique_id):
+        
+        # Check if unique_id contains only alphanumeric and hyphens
+        if unique_id and not re.match(r'^[A-Z0-9\-]+$', unique_id):
                 errors.append('unique_id contains invalid characters')
                 explanations.append(
                     f"Unique ID '{unique_id}' must contain only alphanumeric characters (A-Z, 0-9) and hyphens."
@@ -277,6 +277,35 @@ class RuleValidator:
                 recommended_actions.append(
                     f"Ensure service {service_code} is only used with appropriate diagnosis codes: "
                     f"{', '.join(required_diagnoses)}"
+                )
+        
+        # 4. Check mutually exclusive diagnoses
+        mutually_exclusive = self.medical_rules.get('mutually_exclusive', [])
+        for diag_pair in mutually_exclusive:
+            if len(diag_pair) == 2:
+                diag1, diag2 = diag_pair
+                # Normalize diagnosis codes (handle both with and without decimal points)
+                diag1_normalized = diag1.replace('.', '').upper()
+                diag2_normalized = diag2.replace('.', '').upper()
+                
+                # Check if both diagnoses are present
+                has_diag1 = any(
+                    d.strip().replace('.', '').upper() == diag1_normalized 
+                    for d in diagnosis_codes
+                )
+                has_diag2 = any(
+                    d.strip().replace('.', '').upper() == diag2_normalized 
+                    for d in diagnosis_codes
+                )
+                
+                if has_diag1 and has_diag2:
+                    errors.append('Mutually exclusive diagnoses found on same claim')
+                    explanations.append(
+                        f"Diagnosis codes {diag1} and {diag2} cannot coexist on the same claim. "
+                        f"Both were found in the diagnosis codes for this claim."
+                    )
+                    recommended_actions.append(
+                        f"Remove one of the mutually exclusive diagnosis codes ({diag1} or {diag2}) from the claim."
                 )
         
         return {

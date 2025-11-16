@@ -27,6 +27,7 @@ urlpatterns = [
     path('api/auth/', include('accounts.urls')),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/', include('claims.urls')),
+    path('api/', include('rules.urls')),
 ]
 
 # Serve media files in development

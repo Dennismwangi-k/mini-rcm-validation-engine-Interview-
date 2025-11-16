@@ -1,0 +1,223 @@
+================================================================================
+CASE STUDY - MAIN REQUIREMENTS
+================================================================================
+
+--- PAGE 1 ---
+HUMAEIN
+FULL-STACK AI/ML DEVELOPER_CASE STUDY
+Scrubbing Case Study
+Overview
+You are asked to design a Mini RCM Validation Engine. This engine ingests
+claims data, validates against provided rule documents, persists adjudication
+outcomes, and presents results through a secure front-end. Treat this as a
+production-minded prototype.
+The system must consist of:
+● Front-end: Secure login, upload capability, results visualization
+(charts + tables).
+● Back-end: API service with a master table storing all claims, errors,
+status, and explanations.
+● Data pipeline: A modular data pipeline that reads Technical and Medical
+adjudication documents (files provided) and orchestrates multiple jobs
+dynamically. (Data validation, Static rule evaluation, LLM-based data
+evaluation)
+The data flow:
+● Claims file upload / API data pull (good to have) —> Master table —>
+validation —> Refined table —> Analytics pipeline (static rules and LLM)
+—> Metrics table
+● All tables feeding into Charts/table into the FE UI
+Analytics pipeline
+● Must include 2 components - Static rule evaluation and LLM-based rule
+evaluation
+
+--- PAGE 2 ---
+Deliverables
+Front-end
+● Login screen (username/password).
+● File upload interface (Claims file, Technical rules, Medical rules).
+● Output views:
+○ Charts: two waterfall charts (1) claim counts by error category,
+(2) paid amount by error category.
+○ Results table: Each claim with status, Error type, explanation,
+and recommended action.
+○ NOTE:
+■ Status - Validated / Not validated
+■ Error type - No error / Medical error / Technical error /
+both
+■ Explanation - Tactically outline and explain the errors
+■ Each error is one bullet
+■ Explain why the error has happened based on the rules
+in the adjudication files
+■ Recommendation action - Should be actionable, succinct, and
+targeted towards corrective action
+Back-end
+● API endpoints for file ingestion, validation, audit, and health check.
+● Master Table must include:
+claim_id | encounter_type | service_date | national_id | member_id |
+facility_id | unique_id | diagnosis_codes | service_code |
+paid_amount_aed | approval_number | status | error_type |
+error_explanation | recommended_action
+● Must support multi-tenant config (switch rule sets/files without code
+changes).
+
+--- PAGE 3 ---
+● The rule engine is separate and configurable (e.g., thresholds can
+change).
+Rule Engine
+● Parse Technical and Medical documents.
+● Apply rules deterministically to classify errors.
+● Must be modifiable (e.g., thresholds adjustable without code edits).
+Final Written Questions
+Answer these in ≤500 characters each:
+1. What adjudication rules (technical + medical) did you extract from the
+documents?
+2. What are your top five assumptions in implementing this case study?
+3. What top five questions would you ask the system architect to improve
+your submission?
+Submission
+● Deploy backend + front-end (mock deployment acceptable).
+● Submit by email: careers@humaein.com
+● Subject: [Recruitment] Scrubbing Case Study - Your Name
+● Include:
+○ Demo link + login credentials
+○ Git repository link
+○ Admin/health endpoint
+○ 5-minute recorded demo walkthrough
+○ Answers to final written questions
+Evaluation Rubric (100 pts)
+● Rule correctness & explanations: 25
+● Master table completeness & persistence: 20
+
+--- PAGE 4 ---
+● UI clarity (login, charts, tables): 15
+● Multi-tenant config & dynamic parsing: 15
+● Tests & CI/CD pipeline: 15
+● Documentation & assumptions: 10
+Pass for next interview: ≥75 overall, with no zero in rule correctness or
+master table.
+Live Interview
+● We will ask you to:
+○ Show adjudication output for the provided artifacts.
+○ Re-run validation on a new claims file (same schema, new data).
+○ Optionally use new Technical/Medical rule files with different
+thresholds (e.g., higher Paid amount for approval)
+Case artefacts
+1. Claims file (Make a copy OR download as Excel file)
+2. Medical rules file
+3. Technical rules file
+
+
+================================================================================
+MEDICAL RULES
+================================================================================
+
+--- PAGE 1 ---
+Medical Adjudication Guide (Ideal State)
+Framing: Service eligibility is constrained by (A) encounter type, (B) facility type (by facility ID), (C) presence of
+specific diagnoses, and (D) mutually exclusive diagnoses that must not co-exist on a claim. Your engine must parse
+and apply these rules to the provided claims file.
+A. Services limited by Encounter Type
+(cid:127) Inpatient-only services:
+(cid:127) SRV1001 Major Surgery
+(cid:127) SRV1002 ICU Stay
+(cid:127) SRV1003 Inpatient Dialysis
+(cid:127) Outpatient-only services:
+(cid:127) SRV2001 ECG
+(cid:127) SRV2002 Flu Vaccine
+(cid:127) SRV2003 Routine Lab Panel
+(cid:127) SRV2004 X-Ray
+(cid:127) SRV2006 Pulmonary Function Test
+(cid:127) SRV2007 HbA1c Test
+(cid:127) SRV2008 Ultrasonogram – Pregnancy Check
+(cid:127) SRV2010 Outpatient Dialysis
+(cid:127) SRV2011 Cardiac Stress Test
+B. Services limited by Facility Type
+(cid:127) MATERNITY_HOSPITAL: SRV2008
+(cid:127) DIALYSIS_CENTER: SRV1003, SRV2010
+(cid:127) CARDIOLOGY_CENTER: SRV2001, SRV2011
+(cid:127) GENERAL_HOSPITAL: SRV1001, SRV1002, SRV1003, SRV2001, SRV2002, SRV2003, SRV2004, SRV2006,
+SRV2007, SRV2008, SRV2010, SRV2011
+Facility Registry (IDs present in claims)
+(cid:127) 0DBYE6KP DIALYSIS_CENTER
+(cid:127) 2XKSZK4T MATERNITY_HOSPITAL
+(cid:127) 7R1VMIGX CARDIOLOGY_CENTER
+(cid:127) 96GUDLMT GENERAL_HOSPITAL
+(cid:127) 9V7HTI6E GENERAL_HOSPITAL
+(cid:127) EGVP0QAQ GENERAL_HOSPITAL
+(cid:127) EPRETQTL DIALYSIS_CENTER
+(cid:127) FLXFBIMD GENERAL_HOSPITAL
+(cid:127) GLCTDQAJ MATERNITY_HOSPITAL
+(cid:127) GY0GUI8G GENERAL_HOSPITAL
+(cid:127) I2MFYKYM GENERAL_HOSPITAL
+(cid:127) LB7I54Z7 CARDIOLOGY_CENTER
+(cid:127) M1XCZVQD CARDIOLOGY_CENTER
+(cid:127) M7DJYNG5 GENERAL_HOSPITAL
+(cid:127) MT5W4HIR MATERNITY_HOSPITAL
+(cid:127) OCQUMGDW GENERAL_HOSPITAL
+(cid:127) OIAP2DTP CARDIOLOGY_CENTER
+(cid:127) Q3G9N34N GENERAL_HOSPITAL
+(cid:127) Q8OZ5Z7C GENERAL_HOSPITAL
+(cid:127) RNPGDXCU MATERNITY_HOSPITAL
+(cid:127) S174K5QK GENERAL_HOSPITAL
+(cid:127) SKH7D31V CARDIOLOGY_CENTER
+(cid:127) SZC62NTW GENERAL_HOSPITAL
+(cid:127) VV1GS6P0 MATERNITY_HOSPITAL
+(cid:127) ZDE6M6NJ GENERAL_HOSPITAL
+
+--- PAGE 2 ---
+C. Services requiring specific Diagnoses
+(cid:127) E11.9 Diabetes Mellitus: SRV2007 HbA1c Test
+(cid:127) J45.909 Asthma: SRV2006 Pulmonary Function Test
+(cid:127) R07.9 Chest Pain: SRV2001 ECG
+(cid:127) Z34.0 Pregnancy: SRV2008 Ultrasonogram – Pregnancy Check
+(cid:127) N39.0 Urinary Tract Infection: SRV2005 Urine Culture
+D. Mutually Exclusive Diagnoses (Error if co-present)
+(cid:127) R73.03 Prediabetes cannot coexist with E11.9 Diabetes Mellitus
+(cid:127) E66.9 Obesity cannot coexist with E66.3 Overweight
+(cid:127) R51 Headache cannot coexist with G43.9 Migraine
+
+
+================================================================================
+TECHNICAL RULES
+================================================================================
+
+--- PAGE 1 ---
+Technical Adjudication & Submission Guide (Ideal State)
+Framing: Approval may be required based on (1) the service code, (2) the diagnosis code, and (3) the paid amount
+threshold. In addition, all IDs must follow strict formatting.
+1) Services Requiring Prior Approval
+Service Code Description Approval Required?
+SRV1001 Major Surgery YES
+SRV1002 ICU Stay YES
+SRV1003 Inpatient Dialysis NO
+SRV2001 ECG NO
+SRV2002 Flu Vaccine NO
+SRV2003 Routine Lab Panel NO
+SRV2004 X-Ray NO
+SRV2006 Pulmonary Function Test NO
+SRV2007 HbA1c Test NO
+SRV2008 Ultrasonogram – Pregnancy Check YES
+SRV2010 Outpatient Dialysis NO
+SRV2011 Cardiac Stress Test NO
+2) Diagnosis Codes Requiring Approval
+Diagnosis Code Diagnosis Approval Required?
+E11.9 Diabetes Mellitus YES
+E66.3 Overweight NO
+E66.9 Obesity NO
+E88.9 Metabolic Disorder NO
+G43.9 Migraine NO
+J45.909 Asthma NO
+N39.0 Urinary Tract Infection NO
+R07.9 Chest Pain YES
+R51 Headache NO
+R73.03 Prediabetes NO
+Z34.0 Pregnancy YES
+3) Paid Amount Threshold (in addition to the above)
+Any claim with paid_amount_aed > AED 250 requires prior approval, in addition to any approval needs arising from
+service code or diagnosis code.
+4) ID & Unique ID Formatting
+
+--- PAGE 2 ---
+(cid:127) All IDs must be UPPERCASE alphanumeric (A–Z, 0–9).
+(cid:127) unique_id structure: first4(National ID) – middle4(Member ID) – last4(Facility ID).
+(cid:127) Segments must be hyphen-separated (e.g., AB12-34CD-9XYZ).
+(cid:127) The rule engine must verify segment sources and casing.

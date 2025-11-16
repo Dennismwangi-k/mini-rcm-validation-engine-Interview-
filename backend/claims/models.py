@@ -54,6 +54,104 @@ class Claim(models.Model):
         return f"Claim {self.claim_id} - {self.status}"
 
 
+class RefinedClaim(models.Model):
+    """Refined table - stores validated claims after processing through analytics pipeline"""
+
+    # Reference to master table claim
+    claim = models.OneToOneField(Claim, on_delete=models.CASCADE, related_name='refined_claim')
+
+    # Refined/processed data (claim_id is accessible via claim.claim_id)
+    service_code = models.CharField(max_length=50, db_index=True)
+    paid_amount_aed = models.DecimalField(max_digits=10, decimal_places=2)
+    
+    # Validation results (from analytics pipeline)
+    status = models.CharField(max_length=20, choices=Claim.STATUS_CHOICES)
+    error_type = models.CharField(max_length=20, choices=Claim.ERROR_TYPE_CHOICES)
+    error_explanation = models.TextField(blank=True)
+    recommended_action = models.TextField(blank=True)
+    
+    # Analytics pipeline flags
+    static_rule_validated = models.BooleanField(default=False)
+    llm_validated = models.BooleanField(default=False)
+    static_rule_errors = models.TextField(blank=True, help_text="Errors from static rule evaluation")
+    llm_analysis = models.TextField(blank=True, help_text="LLM-based analysis and recommendations")
+    
+    # Metadata
+    processed_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    processed_by_job = models.ForeignKey('ValidationJob', on_delete=models.SET_NULL, null=True, blank=True, related_name='refined_claims')
+    
+    class Meta:
+        ordering = ['-processed_at']
+        indexes = [
+            models.Index(fields=['status']),
+            models.Index(fields=['error_type']),
+            models.Index(fields=['service_code']),
+            models.Index(fields=['static_rule_validated']),
+            models.Index(fields=['llm_validated']),
+        ]
+    
+    def __str__(self):
+        return f"Refined {self.claim.claim_id} - {self.status}"
+
+
+class Metrics(models.Model):
+    """Metrics table - stores analytics metrics from the analytics pipeline"""
+    
+    # Time period for metrics
+    period_start = models.DateTimeField(db_index=True)
+    period_end = models.DateTimeField(db_index=True)
+    period_type = models.CharField(max_length=20, choices=[
+        ('daily', 'Daily'),
+        ('weekly', 'Weekly'),
+        ('monthly', 'Monthly'),
+        ('job', 'Per Job'),
+    ], default='job')
+    
+    # Reference to job if applicable
+    job = models.ForeignKey('ValidationJob', on_delete=models.SET_NULL, null=True, blank=True, related_name='metrics')
+    
+    # Claim counts
+    total_claims = models.IntegerField(default=0)
+    validated_count = models.IntegerField(default=0)
+    not_validated_count = models.IntegerField(default=0)
+    
+    # Error type counts
+    no_error_count = models.IntegerField(default=0)
+    medical_error_count = models.IntegerField(default=0)
+    technical_error_count = models.IntegerField(default=0)
+    both_error_count = models.IntegerField(default=0)
+    
+    # Paid amounts by error type
+    paid_amount_no_error = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    paid_amount_medical_error = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    paid_amount_technical_error = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    paid_amount_both_error = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # Validation rate
+    validation_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0, help_text="Percentage")
+    
+    # Analytics pipeline metrics
+    static_rule_processed_count = models.IntegerField(default=0)
+    llm_processed_count = models.IntegerField(default=0)
+    
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-period_end']
+        indexes = [
+            models.Index(fields=['period_start', 'period_end']),
+            models.Index(fields=['period_type']),
+            models.Index(fields=['job']),
+        ]
+        unique_together = [['period_start', 'period_end', 'period_type', 'job']]
+    
+    def __str__(self):
+        return f"Metrics {self.period_type} - {self.total_claims} claims"
+
+
 class ValidationJob(models.Model):
     """Track validation jobs/processing runs"""
     
@@ -74,6 +172,13 @@ class ValidationJob(models.Model):
     processed_claims = models.IntegerField(default=0)
     validated_count = models.IntegerField(default=0)
     error_count = models.IntegerField(default=0)
+    
+    # Pipeline stages
+    data_validation_completed = models.BooleanField(default=False)
+    static_rule_evaluation_completed = models.BooleanField(default=False)
+    llm_evaluation_completed = models.BooleanField(default=False)
+    analytics_pipeline_completed = models.BooleanField(default=False)
+    metrics_generated = models.BooleanField(default=False)
     
     error_message = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

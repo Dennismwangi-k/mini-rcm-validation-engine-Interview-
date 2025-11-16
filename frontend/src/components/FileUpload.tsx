@@ -171,7 +171,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onUploadComplete }) => {
       
       <form onSubmit={handleSubmit}>
         <div className="upload-sections-grid">
-          <div className="upload-section">
+        <div className="upload-section">
             <div className="section-header">
               <div className="section-icon claims-icon">📊</div>
               <div>
@@ -179,12 +179,12 @@ const FileUpload: React.FC<FileUploadProps> = ({ onUploadComplete }) => {
                 <span className="required-badge">Required</span>
               </div>
             </div>
-            <div
-              {...claimsDropzone.getRootProps()}
+          <div
+            {...claimsDropzone.getRootProps()}
               className={`dropzone ${claimsDropzone.isDragActive ? 'active' : ''} ${claimsFile ? 'has-file' : ''}`}
-            >
-              <input {...claimsDropzone.getInputProps()} />
-              {claimsFile ? (
+          >
+            <input {...claimsDropzone.getInputProps()} />
+            {claimsFile ? (
                 <div className="file-preview">
                   <div className="file-icon">📄</div>
                   <div className="file-info">
@@ -202,18 +202,18 @@ const FileUpload: React.FC<FileUploadProps> = ({ onUploadComplete }) => {
                     ×
                   </button>
                 </div>
-              ) : (
+            ) : (
                 <div className="dropzone-content">
                   <div className="upload-icon">📤</div>
                   <p className="dropzone-text">Drag & drop an Excel file here</p>
                   <p className="dropzone-subtext">or click to browse</p>
                   <p className="file-types">Supports .xlsx, .xls</p>
                 </div>
-              )}
-            </div>
+            )}
           </div>
+        </div>
 
-          <div className="upload-section">
+        <div className="upload-section">
             <div className="section-header">
               <div className="section-icon technical-icon">⚙️</div>
               <div>
@@ -221,12 +221,12 @@ const FileUpload: React.FC<FileUploadProps> = ({ onUploadComplete }) => {
                 <span className="optional-badge">Optional</span>
               </div>
             </div>
-            <div
-              {...technicalRulesDropzone.getRootProps()}
+          <div
+            {...technicalRulesDropzone.getRootProps()}
               className={`dropzone ${technicalRulesDropzone.isDragActive ? 'active' : ''} ${technicalRulesFile ? 'has-file' : ''}`}
-            >
-              <input {...technicalRulesDropzone.getInputProps()} />
-              {technicalRulesFile ? (
+          >
+            <input {...technicalRulesDropzone.getInputProps()} />
+            {technicalRulesFile ? (
                 <div className="file-preview">
                   <div className="file-icon">📄</div>
                   <div className="file-info">
@@ -244,18 +244,18 @@ const FileUpload: React.FC<FileUploadProps> = ({ onUploadComplete }) => {
                     ×
                   </button>
                 </div>
-              ) : (
+            ) : (
                 <div className="dropzone-content">
                   <div className="upload-icon">📤</div>
                   <p className="dropzone-text">Drag & drop a PDF file here</p>
                   <p className="dropzone-subtext">or click to browse</p>
                   <p className="file-types">Supports .pdf</p>
                 </div>
-              )}
-            </div>
+            )}
           </div>
+        </div>
 
-          <div className="upload-section">
+        <div className="upload-section">
             <div className="section-header">
               <div className="section-icon medical-icon">🏥</div>
               <div>
@@ -263,12 +263,12 @@ const FileUpload: React.FC<FileUploadProps> = ({ onUploadComplete }) => {
                 <span className="optional-badge">Optional</span>
               </div>
             </div>
-            <div
-              {...medicalRulesDropzone.getRootProps()}
+          <div
+            {...medicalRulesDropzone.getRootProps()}
               className={`dropzone ${medicalRulesDropzone.isDragActive ? 'active' : ''} ${medicalRulesFile ? 'has-file' : ''}`}
-            >
-              <input {...medicalRulesDropzone.getInputProps()} />
-              {medicalRulesFile ? (
+          >
+            <input {...medicalRulesDropzone.getInputProps()} />
+            {medicalRulesFile ? (
                 <div className="file-preview">
                   <div className="file-icon">📄</div>
                   <div className="file-info">
@@ -286,14 +286,14 @@ const FileUpload: React.FC<FileUploadProps> = ({ onUploadComplete }) => {
                     ×
                   </button>
                 </div>
-              ) : (
+            ) : (
                 <div className="dropzone-content">
                   <div className="upload-icon">📤</div>
                   <p className="dropzone-text">Drag & drop a PDF file here</p>
                   <p className="dropzone-subtext">or click to browse</p>
                   <p className="file-types">Supports .pdf</p>
                 </div>
-              )}
+            )}
             </div>
           </div>
         </div>
@@ -344,7 +344,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onUploadComplete }) => {
                 <span>Upload and Process</span>
               </>
             )}
-          </button>
+        </button>
         </div>
       </form>
     </div>

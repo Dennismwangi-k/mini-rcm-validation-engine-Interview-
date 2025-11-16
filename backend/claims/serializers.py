@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Claim, ValidationJob
+from .models import Claim, ValidationJob, RefinedClaim, Metrics
 from django.contrib.auth.models import User
 
 
@@ -62,12 +62,49 @@ class ValidationJobSerializer(serializers.ModelSerializer):
             'id', 'job_id', 'status', 'claims_file', 'technical_rules_file',
             'medical_rules_file', 'total_claims', 'processed_claims',
             'validated_count', 'error_count', 'error_message',
+            'data_validation_completed', 'static_rule_evaluation_completed',
+            'llm_evaluation_completed', 'analytics_pipeline_completed', 'metrics_generated',
             'created_at', 'completed_at'
         ]
         read_only_fields = [
             'id', 'job_id', 'status', 'total_claims', 'processed_claims',
-            'validated_count', 'error_count', 'error_message', 'created_at', 'completed_at'
+            'validated_count', 'error_count', 'error_message',
+            'data_validation_completed', 'static_rule_evaluation_completed',
+            'llm_evaluation_completed', 'analytics_pipeline_completed', 'metrics_generated',
+            'created_at', 'completed_at'
         ]
+
+
+class RefinedClaimSerializer(serializers.ModelSerializer):
+    """Serializer for RefinedClaim model"""
+    claim_id = serializers.CharField(source='claim.claim_id', read_only=True)
+    
+    class Meta:
+        model = RefinedClaim
+        fields = [
+            'id', 'claim', 'claim_id', 'service_code', 'paid_amount_aed',
+            'status', 'error_type', 'error_explanation', 'recommended_action',
+            'static_rule_validated', 'llm_validated', 'static_rule_errors', 'llm_analysis',
+            'processed_at', 'updated_at', 'processed_by_job'
+        ]
+        read_only_fields = ['id', 'processed_at', 'updated_at']
+
+
+class MetricsSerializer(serializers.ModelSerializer):
+    """Serializer for Metrics model"""
+    
+    class Meta:
+        model = Metrics
+        fields = [
+            'id', 'period_start', 'period_end', 'period_type', 'job',
+            'total_claims', 'validated_count', 'not_validated_count',
+            'no_error_count', 'medical_error_count', 'technical_error_count', 'both_error_count',
+            'paid_amount_no_error', 'paid_amount_medical_error',
+            'paid_amount_technical_error', 'paid_amount_both_error',
+            'validation_rate', 'static_rule_processed_count', 'llm_processed_count',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
 
 
 class UserSerializer(serializers.ModelSerializer):

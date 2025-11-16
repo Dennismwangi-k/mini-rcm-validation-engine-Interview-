@@ -91,7 +91,7 @@ const Charts: React.FC<ChartsProps> = ({ statistics }) => {
       <div className="charts-grid">
         <div className="chart-card animated-chart">
           <div className="chart-header">
-            <h3>Claim Counts by Error Category</h3>
+          <h3>Claim Counts by Error Category</h3>
             <div className="chart-icon">📈</div>
           </div>
           <ResponsiveContainer width="100%" height={320}>
@@ -139,7 +139,7 @@ const Charts: React.FC<ChartsProps> = ({ statistics }) => {
 
         <div className="chart-card animated-chart">
           <div className="chart-header">
-            <h3>Paid Amount (AED) by Error Category</h3>
+          <h3>Paid Amount (AED) by Error Category</h3>
             <div className="chart-icon">💰</div>
           </div>
           <ResponsiveContainer width="100%" height={320}>

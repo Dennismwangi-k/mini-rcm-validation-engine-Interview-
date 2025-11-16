@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import UploadModal from './UploadModal';
 import Charts from './Charts';
 import ClaimsTable from './ClaimsTable';
+import RuleSetManager from './RuleSetManager';
 import { claimsAPI, Statistics } from '../api/claims';
 import './Dashboard.css';
 import './Responsive.css';
@@ -11,6 +12,7 @@ const Dashboard: React.FC = () => {
   const [statistics, setStatistics] = useState<Statistics | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [rulesetManagerOpen, setRulesetManagerOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -55,14 +57,24 @@ const Dashboard: React.FC = () => {
       <div className="dashboard-content">
         <div className="dashboard-header-actions">
           <h2 className="dashboard-title">📊 Validation Results</h2>
-          <button 
-            className="upload-button-main"
-            onClick={() => setUploadModalOpen(true)}
-            title="Upload and validate claims"
-          >
-            <span>📤</span>
-            <span>Upload</span>
-          </button>
+          <div className="action-buttons">
+            <button 
+              className="ruleset-button"
+              onClick={() => setRulesetManagerOpen(true)}
+              title="Manage rule sets and thresholds"
+            >
+              <span>⚙️</span>
+              <span>Rule Sets</span>
+            </button>
+            <button 
+              className="upload-button-main"
+              onClick={() => setUploadModalOpen(true)}
+              title="Upload and validate claims"
+            >
+              <span>📤</span>
+              <span>Upload</span>
+            </button>
+          </div>
         </div>
 
         <div className="results-container">
@@ -96,6 +108,15 @@ const Dashboard: React.FC = () => {
         onClose={() => setUploadModalOpen(false)}
         onUploadComplete={loadStatistics}
       />
+
+      {rulesetManagerOpen && (
+        <div className="ruleset-manager-modal">
+          <div className="ruleset-manager-modal-overlay" onClick={() => setRulesetManagerOpen(false)}></div>
+          <div className="ruleset-manager-modal-content">
+            <RuleSetManager onClose={() => setRulesetManagerOpen(false)} />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

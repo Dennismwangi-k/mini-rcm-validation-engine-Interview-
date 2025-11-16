@@ -2,11 +2,15 @@ from celery import shared_task
 from django.core.files.storage import default_storage
 import pandas as pd
 from pathlib import Path
-from .models import Claim, ValidationJob
+from .models import Claim, ValidationJob, RefinedClaim, Metrics
 from rules.rule_parser import TechnicalRuleParser, MedicalRuleParser
 from rules.rule_validator import RuleValidator
 from rules.llm_validator import LLMValidator
+from rules.models import RuleSet
 from django.conf import settings
+from django.utils import timezone
+from django.db.models import Sum, Count, Q
+from decimal import Decimal
 import uuid
 
 
@@ -18,22 +22,37 @@ def process_claims_file(self, job_id: str):
         job.status = 'processing'
         job.save()
         
-        # Load rules - always try to load default rules
+        # Load rules with multi-tenant support
+        # Priority: 1. Active RuleSet, 2. Job-specific files, 3. Default files
         technical_rules = {}
         medical_rules = {}
         
+        # Check for active RuleSet first (multi-tenant support)
+        active_ruleset = RuleSet.objects.filter(is_active=True).first()
+        threshold_override = None
+        if active_ruleset:
+            threshold_override = float(active_ruleset.paid_amount_threshold) if active_ruleset.paid_amount_threshold else None
+            print(f"Using active RuleSet: {active_ruleset.name} (threshold: {threshold_override or 'from PDF'})")
+        
         # Try to load technical rules
         try:
-            if job.technical_rules_file:
+            # Priority 1: Active RuleSet technical rules file
+            if active_ruleset and active_ruleset.technical_rules_file:
+                parser = TechnicalRuleParser(active_ruleset.technical_rules_file.path)
+                technical_rules = parser.parse()
+                print(f"Loaded technical rules from RuleSet: {active_ruleset.name}")
+            # Priority 2: Job-specific technical rules file
+            elif job.technical_rules_file:
                 parser = TechnicalRuleParser(job.technical_rules_file.path)
                 technical_rules = parser.parse()
+                print("Loaded technical rules from job file")
+            # Priority 3: Default technical rules file
             else:
-                # Use default technical rules file
                 default_tech_rules = Path(settings.TENANT_CONFIG_PATH) / 'Humaein_Technical_Rules.pdf'
                 if default_tech_rules.exists():
                     parser = TechnicalRuleParser(str(default_tech_rules))
                     technical_rules = parser.parse()
-                    print(f"Loaded technical rules: {len(technical_rules.get('service_approvals', {}))} service approvals, {len(technical_rules.get('diagnosis_approvals', {}))} diagnosis approvals")
+                    print(f"Loaded technical rules from default file: {len(technical_rules.get('service_approvals', {}))} service approvals, {len(technical_rules.get('diagnosis_approvals', {}))} diagnosis approvals")
                 else:
                     print(f"Warning: Default technical rules file not found at {default_tech_rules}")
         except Exception as e:
@@ -48,16 +67,23 @@ def process_claims_file(self, job_id: str):
         
         # Try to load medical rules
         try:
-            if job.medical_rules_file:
+            # Priority 1: Active RuleSet medical rules file
+            if active_ruleset and active_ruleset.medical_rules_file:
+                parser = MedicalRuleParser(active_ruleset.medical_rules_file.path)
+                medical_rules = parser.parse()
+                print(f"Loaded medical rules from RuleSet: {active_ruleset.name}")
+            # Priority 2: Job-specific medical rules file
+            elif job.medical_rules_file:
                 parser = MedicalRuleParser(job.medical_rules_file.path)
                 medical_rules = parser.parse()
+                print("Loaded medical rules from job file")
+            # Priority 3: Default medical rules file
             else:
-                # Use default medical rules file
                 default_med_rules = Path(settings.TENANT_CONFIG_PATH) / 'Humaein_Medical_Rules.pdf'
                 if default_med_rules.exists():
                     parser = MedicalRuleParser(str(default_med_rules))
                     medical_rules = parser.parse()
-                    print(f"Loaded medical rules: {len(medical_rules.get('encounter_type_restrictions', {}))} encounter restrictions, {len(medical_rules.get('facility_registry', {}))} facilities")
+                    print(f"Loaded medical rules from default file: {len(medical_rules.get('encounter_type_restrictions', {}))} encounter restrictions, {len(medical_rules.get('facility_registry', {}))} facilities")
                 else:
                     print(f"Warning: Default medical rules file not found at {default_med_rules}")
         except Exception as e:
@@ -67,12 +93,17 @@ def process_claims_file(self, job_id: str):
                 'encounter_type_restrictions': {},
                 'facility_type_restrictions': {},
                 'diagnosis_requirements': {},
-                'facility_registry': {}
+                'facility_registry': {},
+                'mutually_exclusive': []
             }
         
-        # Ensure we have at least default threshold
-        if not technical_rules.get('amount_threshold'):
+        # Apply threshold override from RuleSet (configurable without code changes)
+        if threshold_override is not None:
+            technical_rules['amount_threshold'] = threshold_override
+            print(f"Threshold overridden by RuleSet: AED {threshold_override}")
+        elif not technical_rules.get('amount_threshold'):
             technical_rules['amount_threshold'] = 250.00
+            print(f"Using default threshold: AED 250.00")
         
         # Initialize validators
         rule_validator = RuleValidator(technical_rules, medical_rules)
@@ -115,20 +146,16 @@ def process_claims_file(self, job_id: str):
                     'approval_number': str(row.get('approval_number', row.get('approval number', ''))).strip() if pd.notna(row.get('approval_number', row.get('approval number', ''))) else None,
                 }
                 
-                # Validate claim
-                validation_result = rule_validator.validate_claim(claim_data)
+                # ============================================
+                # DATA PIPELINE: Stage 1 - Data Validation
+                # ============================================
+                # Validate claim data format and completeness
+                # (Basic validation happens here - data type checks, required fields, etc.)
                 
-                # Enhance with LLM if needed
-                if validation_result['error_type'] != 'no_error':
-                    llm_result = llm_validator.validate_claim(claim_data, validation_result)
-                    if llm_result.get('llm_enhanced'):
-                        # Merge LLM insights
-                        if llm_result.get('llm_explanation'):
-                            validation_result['explanations'] += f"\n\nLLM Analysis:\n{llm_result['llm_explanation']}"
-                        if llm_result.get('llm_recommendations'):
-                            validation_result['recommended_actions'] += f"\n\nLLM Recommendations:\n{llm_result['llm_recommendations']}"
-                
-                # Create or update claim
+                # ============================================
+                # DATA PIPELINE: Stage 2 - Master Table
+                # ============================================
+                # Store in master table (Claim)
                 claim, created = Claim.objects.update_or_create(
                     claim_id=claim_data['claim_id'],
                     defaults={
@@ -142,16 +169,69 @@ def process_claims_file(self, job_id: str):
                         'service_code': claim_data['service_code'],
                         'paid_amount_aed': claim_data['paid_amount_aed'],
                         'approval_number': claim_data['approval_number'],
-                        'status': validation_result['status'],
-                        'error_type': validation_result['error_type'],
-                        'error_explanation': validation_result['explanations'],
-                        'recommended_action': validation_result['recommended_actions'],
                         'uploaded_by': job.created_by,
-                        'validated_by': job.created_by,  # Track who validated
                     }
                 )
                 
-                if validation_result['status'] == 'validated':
+                # ============================================
+                # DATA PIPELINE: Stage 3 - Validation
+                # ============================================
+                # ANALYTICS PIPELINE Component 1: Static Rule Evaluation
+                static_validation_result = rule_validator.validate_claim(claim_data)
+                static_rule_validated = True
+                static_rule_errors = static_validation_result.get('explanations', '')
+                
+                # ANALYTICS PIPELINE Component 2: LLM-based Evaluation
+                llm_validated = False
+                llm_analysis = ''
+                final_validation_result = static_validation_result.copy()
+                
+                if static_validation_result['error_type'] != 'no_error':
+                    try:
+                        llm_result = llm_validator.validate_claim(claim_data, static_validation_result)
+                        llm_validated = True
+                        if llm_result.get('llm_enhanced'):
+                            # Merge LLM insights
+                            if llm_result.get('llm_explanation'):
+                                llm_analysis = llm_result['llm_explanation']
+                                final_validation_result['explanations'] += f"\n\nLLM Analysis:\n{llm_result['llm_explanation']}"
+                            if llm_result.get('llm_recommendations'):
+                                llm_analysis += f"\n\nLLM Recommendations:\n{llm_result['llm_recommendations']}"
+                                final_validation_result['recommended_actions'] += f"\n\nLLM Recommendations:\n{llm_result['llm_recommendations']}"
+                    except Exception as e:
+                        print(f"LLM validation failed for claim {claim_data['claim_id']}: {str(e)}")
+                        llm_analysis = f"LLM validation skipped: {str(e)}"
+                
+                # Update master table with final validation results
+                claim.status = final_validation_result['status']
+                claim.error_type = final_validation_result['error_type']
+                claim.error_explanation = final_validation_result['explanations']
+                claim.recommended_action = final_validation_result['recommended_actions']
+                claim.validated_by = job.created_by
+                claim.save()
+                
+                # ============================================
+                # DATA PIPELINE: Stage 4 - Refined Table
+                # ============================================
+                # Store validated/refined claim in RefinedClaim table
+                refined_claim, refined_created = RefinedClaim.objects.update_or_create(
+                    claim=claim,
+                    defaults={
+                        'service_code': claim.service_code,
+                        'paid_amount_aed': claim.paid_amount_aed,
+                        'status': final_validation_result['status'],
+                        'error_type': final_validation_result['error_type'],
+                        'error_explanation': final_validation_result['explanations'],
+                        'recommended_action': final_validation_result['recommended_actions'],
+                        'static_rule_validated': static_rule_validated,
+                        'llm_validated': llm_validated,
+                        'static_rule_errors': static_rule_errors,
+                        'llm_analysis': llm_analysis,
+                        'processed_by_job': job,
+                    }
+                )
+                
+                if final_validation_result['status'] == 'validated':
                     validated_count += 1
                 else:
                     error_count += 1
@@ -159,6 +239,10 @@ def process_claims_file(self, job_id: str):
                 job.processed_claims = idx + 1
                 job.validated_count = validated_count
                 job.error_count = error_count
+                job.data_validation_completed = True
+                job.static_rule_evaluation_completed = True
+                job.llm_evaluation_completed = True
+                job.analytics_pipeline_completed = True
                 job.save()
                 
             except Exception as e:
@@ -167,8 +251,16 @@ def process_claims_file(self, job_id: str):
                 error_count += 1
                 continue
         
+        # ============================================
+        # DATA PIPELINE: Stage 5 - Analytics Pipeline → Metrics Table
+        # ============================================
+        # Generate metrics from refined claims
+        print("Generating metrics from refined claims...")
+        generate_metrics_for_job(job)
+        job.metrics_generated = True
+        job.save()
+        
         # Mark job as completed
-        from django.utils import timezone
         job.status = 'completed'
         job.completed_at = timezone.now()
         job.save()
@@ -189,6 +281,84 @@ def process_claims_file(self, job_id: str):
         return {'status': 'failed', 'error': str(e)}
 
 
+def generate_metrics_for_job(job: ValidationJob):
+    """Generate metrics from refined claims for a specific job"""
+    try:
+        # Get all refined claims for this job
+        refined_claims = RefinedClaim.objects.filter(processed_by_job=job)
+        
+        if not refined_claims.exists():
+            print(f"No refined claims found for job {job.job_id}")
+            return
+        
+        # Calculate metrics
+        total_claims = refined_claims.count()
+        validated_count = refined_claims.filter(status='validated').count()
+        not_validated_count = refined_claims.filter(status='not_validated').count()
+        
+        # Error type counts
+        no_error_count = refined_claims.filter(error_type='no_error').count()
+        medical_error_count = refined_claims.filter(error_type='medical_error').count()
+        technical_error_count = refined_claims.filter(error_type='technical_error').count()
+        both_error_count = refined_claims.filter(error_type='both').count()
+        
+        # Paid amounts by error type
+        paid_amount_no_error = refined_claims.filter(error_type='no_error').aggregate(
+            total=Sum('paid_amount_aed')
+        )['total'] or Decimal('0.00')
+        
+        paid_amount_medical_error = refined_claims.filter(error_type='medical_error').aggregate(
+            total=Sum('paid_amount_aed')
+        )['total'] or Decimal('0.00')
+        
+        paid_amount_technical_error = refined_claims.filter(error_type='technical_error').aggregate(
+            total=Sum('paid_amount_aed')
+        )['total'] or Decimal('0.00')
+        
+        paid_amount_both_error = refined_claims.filter(error_type='both').aggregate(
+            total=Sum('paid_amount_aed')
+        )['total'] or Decimal('0.00')
+        
+        # Validation rate
+        validation_rate = (validated_count / total_claims * 100) if total_claims > 0 else Decimal('0.00')
+        
+        # Analytics pipeline metrics
+        static_rule_processed_count = refined_claims.filter(static_rule_validated=True).count()
+        llm_processed_count = refined_claims.filter(llm_validated=True).count()
+        
+        # Create or update metrics
+        period_start = job.created_at
+        period_end = job.completed_at or timezone.now()
+        
+        metrics, created = Metrics.objects.update_or_create(
+            job=job,
+            period_type='job',
+            defaults={
+                'period_start': period_start,
+                'period_end': period_end,
+                'total_claims': total_claims,
+                'validated_count': validated_count,
+                'not_validated_count': not_validated_count,
+                'no_error_count': no_error_count,
+                'medical_error_count': medical_error_count,
+                'technical_error_count': technical_error_count,
+                'both_error_count': both_error_count,
+                'paid_amount_no_error': paid_amount_no_error,
+                'paid_amount_medical_error': paid_amount_medical_error,
+                'paid_amount_technical_error': paid_amount_technical_error,
+                'paid_amount_both_error': paid_amount_both_error,
+                'validation_rate': validation_rate,
+                'static_rule_processed_count': static_rule_processed_count,
+                'llm_processed_count': llm_processed_count,
+            }
+        )
+        
+        print(f"Metrics generated for job {job.job_id}: {total_claims} claims, {validated_count} validated, {validation_rate:.2f}% rate")
+        
+    except Exception as e:
+        print(f"Error generating metrics for job {job.job_id}: {str(e)}")
+
+
 @shared_task(bind=True)
 def revalidate_all_claims(self=None, user_id=None):
     """Revalidate all claims in database with current rules"""
@@ -206,19 +376,34 @@ def revalidate_all_claims(self=None, user_id=None):
         # Fallback to system user if no user provided
         if not validated_by_user:
             validated_by_user = User.objects.filter(is_superuser=True).first()
-        # Load rules from default files
+        
+        # Load rules with multi-tenant support (same logic as process_claims_file)
         technical_rules = {}
         medical_rules = {}
         
+        # Check for active RuleSet first (multi-tenant support)
+        active_ruleset = RuleSet.objects.filter(is_active=True).first()
+        threshold_override = None
+        if active_ruleset:
+            threshold_override = float(active_ruleset.paid_amount_threshold) if active_ruleset.paid_amount_threshold else None
+            print(f"Using active RuleSet: {active_ruleset.name} (threshold: {threshold_override or 'from PDF'})")
+        
         # Try to load technical rules
         try:
-            default_tech_rules = Path(settings.TENANT_CONFIG_PATH) / 'Humaein_Technical_Rules.pdf'
-            if default_tech_rules.exists():
-                parser = TechnicalRuleParser(str(default_tech_rules))
+            # Priority 1: Active RuleSet technical rules file
+            if active_ruleset and active_ruleset.technical_rules_file:
+                parser = TechnicalRuleParser(active_ruleset.technical_rules_file.path)
                 technical_rules = parser.parse()
-                print(f"Loaded technical rules: {len(technical_rules.get('service_approvals', {}))} service approvals")
+                print(f"Loaded technical rules from RuleSet: {active_ruleset.name}")
+            # Priority 2: Default technical rules file
             else:
-                print(f"Warning: Default technical rules file not found at {default_tech_rules}")
+                default_tech_rules = Path(settings.TENANT_CONFIG_PATH) / 'Humaein_Technical_Rules.pdf'
+                if default_tech_rules.exists():
+                    parser = TechnicalRuleParser(str(default_tech_rules))
+                    technical_rules = parser.parse()
+                    print(f"Loaded technical rules from default file: {len(technical_rules.get('service_approvals', {}))} service approvals")
+                else:
+                    print(f"Warning: Default technical rules file not found at {default_tech_rules}")
         except Exception as e:
             print(f"Error loading technical rules: {str(e)}")
             technical_rules = {
@@ -230,25 +415,37 @@ def revalidate_all_claims(self=None, user_id=None):
         
         # Try to load medical rules
         try:
-            default_med_rules = Path(settings.TENANT_CONFIG_PATH) / 'Humaein_Medical_Rules.pdf'
-            if default_med_rules.exists():
-                parser = MedicalRuleParser(str(default_med_rules))
+            # Priority 1: Active RuleSet medical rules file
+            if active_ruleset and active_ruleset.medical_rules_file:
+                parser = MedicalRuleParser(active_ruleset.medical_rules_file.path)
                 medical_rules = parser.parse()
-                print(f"Loaded medical rules: {len(medical_rules.get('encounter_type_restrictions', {}))} encounter restrictions")
+                print(f"Loaded medical rules from RuleSet: {active_ruleset.name}")
+            # Priority 2: Default medical rules file
             else:
-                print(f"Warning: Default medical rules file not found at {default_med_rules}")
+                default_med_rules = Path(settings.TENANT_CONFIG_PATH) / 'Humaein_Medical_Rules.pdf'
+                if default_med_rules.exists():
+                    parser = MedicalRuleParser(str(default_med_rules))
+                    medical_rules = parser.parse()
+                    print(f"Loaded medical rules from default file: {len(medical_rules.get('encounter_type_restrictions', {}))} encounter restrictions")
+                else:
+                    print(f"Warning: Default medical rules file not found at {default_med_rules}")
         except Exception as e:
             print(f"Error loading medical rules: {str(e)}")
             medical_rules = {
                 'encounter_type_restrictions': {},
                 'facility_type_restrictions': {},
                 'diagnosis_requirements': {},
-                'facility_registry': {}
+                'facility_registry': {},
+                'mutually_exclusive': []
             }
         
-        # Ensure we have at least default threshold
-        if not technical_rules.get('amount_threshold'):
+        # Apply threshold override from RuleSet (configurable without code changes)
+        if threshold_override is not None:
+            technical_rules['amount_threshold'] = threshold_override
+            print(f"Threshold overridden by RuleSet: AED {threshold_override}")
+        elif not technical_rules.get('amount_threshold'):
             technical_rules['amount_threshold'] = 250.00
+            print(f"Using default threshold: AED 250.00")
         
         # Initialize validators
         rule_validator = RuleValidator(technical_rules, medical_rules)
@@ -263,7 +460,7 @@ def revalidate_all_claims(self=None, user_id=None):
         
         print(f"Revalidating {total} claims...")
         
-        # Process each claim
+        # Process each claim through full data pipeline
         for claim in all_claims:
             try:
                 # Convert claim to dict format
@@ -281,31 +478,64 @@ def revalidate_all_claims(self=None, user_id=None):
                     'approval_number': claim.approval_number or '',
                 }
                 
-                # Validate claim
-                validation_result = rule_validator.validate_claim(claim_data)
+                # ============================================
+                # DATA PIPELINE: Stage 3 - Validation
+                # ============================================
+                # ANALYTICS PIPELINE Component 1: Static Rule Evaluation
+                static_validation_result = rule_validator.validate_claim(claim_data)
+                static_rule_validated = True
+                static_rule_errors = static_validation_result.get('explanations', '')
                 
-                # Enhance with LLM if needed
-                if validation_result['error_type'] != 'no_error':
+                # ANALYTICS PIPELINE Component 2: LLM-based Evaluation
+                llm_validated = False
+                llm_analysis = ''
+                final_validation_result = static_validation_result.copy()
+                
+                if static_validation_result['error_type'] != 'no_error':
                     try:
-                        llm_result = llm_validator.validate_claim(claim_data, validation_result)
+                        llm_result = llm_validator.validate_claim(claim_data, static_validation_result)
+                        llm_validated = True
                         if llm_result.get('llm_enhanced'):
                             if llm_result.get('llm_explanation'):
-                                validation_result['explanations'] += f"\n\nLLM Analysis:\n{llm_result['llm_explanation']}"
+                                llm_analysis = llm_result['llm_explanation']
+                                final_validation_result['explanations'] += f"\n\nLLM Analysis:\n{llm_result['llm_explanation']}"
                             if llm_result.get('llm_recommendations'):
-                                validation_result['recommended_actions'] += f"\n\nLLM Recommendations:\n{llm_result['llm_recommendations']}"
+                                llm_analysis += f"\n\nLLM Recommendations:\n{llm_result['llm_recommendations']}"
+                                final_validation_result['recommended_actions'] += f"\n\nLLM Recommendations:\n{llm_result['llm_recommendations']}"
                     except Exception as e:
                         print(f"LLM validation failed for claim {claim.claim_id}: {str(e)}")
+                        llm_analysis = f"LLM validation skipped: {str(e)}"
                 
-                    # Update claim with new validation results
-                    claim.status = validation_result['status']
-                    claim.error_type = validation_result['error_type']
-                    claim.error_explanation = validation_result['explanations']
-                    claim.recommended_action = validation_result['recommended_actions']
-                    # Set validated_by to the user who triggered revalidation
-                    claim.validated_by = validated_by_user
-                    claim.save()
+                # Update master table with final validation results
+                claim.status = final_validation_result['status']
+                claim.error_type = final_validation_result['error_type']
+                claim.error_explanation = final_validation_result['explanations']
+                claim.recommended_action = final_validation_result['recommended_actions']
+                claim.validated_by = validated_by_user
+                claim.save()
                 
-                if validation_result['status'] == 'validated':
+                # ============================================
+                # DATA PIPELINE: Stage 4 - Refined Table
+                # ============================================
+                # Store validated/refined claim in RefinedClaim table
+                refined_claim, refined_created = RefinedClaim.objects.update_or_create(
+                    claim=claim,
+                    defaults={
+                        'service_code': claim.service_code,
+                        'paid_amount_aed': claim.paid_amount_aed,
+                        'status': final_validation_result['status'],
+                        'error_type': final_validation_result['error_type'],
+                        'error_explanation': final_validation_result['explanations'],
+                        'recommended_action': final_validation_result['recommended_actions'],
+                        'static_rule_validated': static_rule_validated,
+                        'llm_validated': llm_validated,
+                        'static_rule_errors': static_rule_errors,
+                        'llm_analysis': llm_analysis,
+                        'processed_by_job': None,  # Revalidation doesn't have a job
+                    }
+                )
+                
+                if final_validation_result['status'] == 'validated':
                     validated_count += 1
                 else:
                     error_count += 1
@@ -333,6 +563,65 @@ def revalidate_all_claims(self=None, user_id=None):
                 error_count += 1
                 processed += 1
                 continue
+        
+        # ============================================
+        # DATA PIPELINE: Stage 5 - Analytics Pipeline → Metrics Table
+        # ============================================
+        # Generate overall metrics from all refined claims
+        print("Generating overall metrics from refined claims...")
+        try:
+            from .models import RefinedClaim
+            refined_claims = RefinedClaim.objects.all()
+            
+            if refined_claims.exists():
+                # Calculate aggregate metrics
+                total_refined = refined_claims.count()
+                validated_refined = refined_claims.filter(status='validated').count()
+                not_validated_refined = refined_claims.filter(status='not_validated').count()
+                
+                no_error_count = refined_claims.filter(error_type='no_error').count()
+                medical_error_count = refined_claims.filter(error_type='medical_error').count()
+                technical_error_count = refined_claims.filter(error_type='technical_error').count()
+                both_error_count = refined_claims.filter(error_type='both').count()
+                
+                paid_amount_no_error = refined_claims.filter(error_type='no_error').aggregate(total=Sum('paid_amount_aed'))['total'] or Decimal('0.00')
+                paid_amount_medical_error = refined_claims.filter(error_type='medical_error').aggregate(total=Sum('paid_amount_aed'))['total'] or Decimal('0.00')
+                paid_amount_technical_error = refined_claims.filter(error_type='technical_error').aggregate(total=Sum('paid_amount_aed'))['total'] or Decimal('0.00')
+                paid_amount_both_error = refined_claims.filter(error_type='both').aggregate(total=Sum('paid_amount_aed'))['total'] or Decimal('0.00')
+                
+                validation_rate = (validated_refined / total_refined * 100) if total_refined > 0 else Decimal('0.00')
+                static_rule_processed_count = refined_claims.filter(static_rule_validated=True).count()
+                llm_processed_count = refined_claims.filter(llm_validated=True).count()
+                
+                # Create overall metrics (no job association for revalidation)
+                period_start = timezone.now() - timezone.timedelta(days=1)
+                period_end = timezone.now()
+                
+                Metrics.objects.update_or_create(
+                    job=None,
+                    period_type='job',
+                    period_start=period_start,
+                    period_end=period_end,
+                    defaults={
+                        'total_claims': total_refined,
+                        'validated_count': validated_refined,
+                        'not_validated_count': not_validated_refined,
+                        'no_error_count': no_error_count,
+                        'medical_error_count': medical_error_count,
+                        'technical_error_count': technical_error_count,
+                        'both_error_count': both_error_count,
+                        'paid_amount_no_error': paid_amount_no_error,
+                        'paid_amount_medical_error': paid_amount_medical_error,
+                        'paid_amount_technical_error': paid_amount_technical_error,
+                        'paid_amount_both_error': paid_amount_both_error,
+                        'validation_rate': validation_rate,
+                        'static_rule_processed_count': static_rule_processed_count,
+                        'llm_processed_count': llm_processed_count,
+                    }
+                )
+                print(f"Overall metrics generated: {total_refined} claims, {validated_refined} validated, {validation_rate:.2f}% rate")
+        except Exception as e:
+            print(f"Error generating overall metrics: {str(e)}")
         
         print(f"Revalidation completed: {processed}/{total} claims processed, {validated_count} validated, {error_count} errors")
         

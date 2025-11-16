@@ -232,7 +232,7 @@
   width: 100%;
   border-collapse: collapse;
   background: var(--bg-primary);
-  min-width: 1800px; /* Increased for all required columns */
+  min-width: 900px; /* Reduced for required columns only: Claim ID, Status, Error Type, Explanation, Recommended Action */
 }
 
 .claims-table th {

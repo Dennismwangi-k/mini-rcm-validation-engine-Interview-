@@ -25,36 +25,68 @@ class ClaimViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'])
     def statistics(self, request):
-        """Get statistics for claims"""
-        queryset = self.filter_queryset(self.get_queryset())
-        
-        total = queryset.count()
-        validated = queryset.filter(status='validated').count()
-        not_validated = queryset.filter(status='not_validated').count()
-        
-        error_types = {
-            'no_error': queryset.filter(error_type='no_error').count(),
-            'medical_error': queryset.filter(error_type='medical_error').count(),
-            'technical_error': queryset.filter(error_type='technical_error').count(),
-            'both': queryset.filter(error_type='both').count(),
-        }
-        
-        # Calculate paid amounts by error category
+        """Get statistics for claims - uses Metrics table (from analytics pipeline)"""
+        from .models import Metrics
         from django.db.models import Sum
-        paid_by_error = {
-            'no_error': float(queryset.filter(error_type='no_error').aggregate(total=Sum('paid_amount_aed'))['total'] or 0),
-            'medical_error': float(queryset.filter(error_type='medical_error').aggregate(total=Sum('paid_amount_aed'))['total'] or 0),
-            'technical_error': float(queryset.filter(error_type='technical_error').aggregate(total=Sum('paid_amount_aed'))['total'] or 0),
-            'both': float(queryset.filter(error_type='both').aggregate(total=Sum('paid_amount_aed'))['total'] or 0),
-        }
         
-        return Response({
-            'total_claims': total,
-            'validated': validated,
-            'not_validated': not_validated,
-            'error_type_counts': error_types,
-            'paid_amount_by_error': paid_by_error
-        })
+        # Try to get latest metrics from Metrics table (preferred - from analytics pipeline)
+        latest_metrics = Metrics.objects.filter(period_type='job').order_by('-period_end').first()
+        
+        if latest_metrics:
+            # Use metrics from Metrics table (analytics pipeline output)
+            return Response({
+                'total_claims': latest_metrics.total_claims,
+                'validated': latest_metrics.validated_count,
+                'not_validated': latest_metrics.not_validated_count,
+                'error_type_counts': {
+                    'no_error': latest_metrics.no_error_count,
+                    'medical_error': latest_metrics.medical_error_count,
+                    'technical_error': latest_metrics.technical_error_count,
+                    'both': latest_metrics.both_error_count,
+                },
+                'paid_amount_by_error': {
+                    'no_error': float(latest_metrics.paid_amount_no_error),
+                    'medical_error': float(latest_metrics.paid_amount_medical_error),
+                    'technical_error': float(latest_metrics.paid_amount_technical_error),
+                    'both': float(latest_metrics.paid_amount_both_error),
+                },
+                'validation_rate': float(latest_metrics.validation_rate),
+                'source': 'metrics_table'  # Indicate data source
+            })
+        else:
+            # Fallback: Calculate from RefinedClaim table (refined table)
+            from .models import RefinedClaim
+            refined_claims = RefinedClaim.objects.all()
+            
+            total = refined_claims.count()
+            validated = refined_claims.filter(status='validated').count()
+            not_validated = refined_claims.filter(status='not_validated').count()
+            
+            error_types = {
+                'no_error': refined_claims.filter(error_type='no_error').count(),
+                'medical_error': refined_claims.filter(error_type='medical_error').count(),
+                'technical_error': refined_claims.filter(error_type='technical_error').count(),
+                'both': refined_claims.filter(error_type='both').count(),
+            }
+            
+            paid_by_error = {
+                'no_error': float(refined_claims.filter(error_type='no_error').aggregate(total=Sum('paid_amount_aed'))['total'] or 0),
+                'medical_error': float(refined_claims.filter(error_type='medical_error').aggregate(total=Sum('paid_amount_aed'))['total'] or 0),
+                'technical_error': float(refined_claims.filter(error_type='technical_error').aggregate(total=Sum('paid_amount_aed'))['total'] or 0),
+                'both': float(refined_claims.filter(error_type='both').aggregate(total=Sum('paid_amount_aed'))['total'] or 0),
+            }
+            
+            validation_rate = (validated / total * 100) if total > 0 else 0.0
+            
+            return Response({
+                'total_claims': total,
+                'validated': validated,
+                'not_validated': not_validated,
+                'error_type_counts': error_types,
+                'paid_amount_by_error': paid_by_error,
+                'validation_rate': validation_rate,
+                'source': 'refined_table'  # Indicate data source
+            })
     
     @action(detail=False, methods=['post'])
     def revalidate(self, request):

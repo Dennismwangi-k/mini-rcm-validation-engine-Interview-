@@ -119,6 +119,7 @@ class MedicalRuleParser:
         self._parse_facility_type_restrictions(text)
         self._parse_diagnosis_requirements(text)
         self._parse_facility_registry(text)
+        self._parse_mutually_exclusive_diagnoses(text)
         
         return self.rules
     
@@ -192,4 +193,18 @@ class MedicalRuleParser:
             if service_code not in self.rules['diagnosis_requirements']:
                 self.rules['diagnosis_requirements'][service_code] = []
             self.rules['diagnosis_requirements'][service_code].append(diagnosis_code)
+    
+    def _parse_mutually_exclusive_diagnoses(self, text: str):
+        """Parse mutually exclusive diagnoses"""
+        # Pattern: "R73.03 Prediabetes cannot coexist with E11.9 Diabetes Mellitus"
+        # Pattern: "E66.9 Obesity cannot coexist with E66.3 Overweight"
+        # Pattern: "R51 Headache cannot coexist with G43.9 Migraine"
+        pattern = r'([A-Z]\d+\.?\d*)\s+[^c]+cannot coexist with\s+([A-Z]\d+\.?\d*)'
+        matches = re.findall(pattern, text, re.IGNORECASE)
+        
+        for diag1, diag2 in matches:
+            # Add both directions (diag1 + diag2 and diag2 + diag1)
+            pair = tuple(sorted([diag1.strip(), diag2.strip()]))
+            if pair not in self.rules['mutually_exclusive']:
+                self.rules['mutually_exclusive'].append(pair)
 
