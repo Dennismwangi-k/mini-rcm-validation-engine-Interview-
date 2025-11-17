@@ -48,13 +48,13 @@ const Login: React.FC = () => {
           <div className="form-group">
             <label>Password</label>
             <div className="password-input-wrapper">
-              <input
+            <input
                 type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
                 placeholder="Enter your password"
-              />
+            />
               <button
                 type="button"
                 className="password-toggle"
